@@ -46,6 +46,27 @@ GitHub ──▶ sources ──▶ sync ──▶ index ──▶ filter ──�
 - **Layout.** A layout is a document that places blocks on a page and its tabs. Rules map a filter to a layout.
 - **Actions.** Approve, comment, and merge apply to the index at once, are sent to GitHub in the background, and are put back if GitHub refuses.
 
+## Teams' own facts and actions, and agent support
+
+Added 2026-11-25 from the owner's note. The vision now has both as principles. This is the proposed shape, not a decision.
+
+The owner's example: a bot posts a comment with a checkbox, and ticking it starts an expensive CI run. The app should let a team turn that into a "Run expensive CI" button without the app knowing anything about that bot.
+
+That example is three parts, and each is something a team writes in a file:
+
+- **A fact.** A rule that reads what the index already holds and produces a named value on the pull request. Here: "the comment by `ci-bot` that contains this text has its checkbox unticked" becomes `expensive_ci.requested = false`. Because it is a fact in the index, search, saved views, and layout rules can all filter on it.
+- **An action.** A name, a label, a filter that says when it is offered, and an effect on GitHub. Here: "tick that checkbox." Effects come from a short list: edit a comment, post a comment, add or remove a label, re-run a check, start a workflow. It goes through the same queue as Approve, so it shows at once and is put back if GitHub refuses.
+- **A place.** The action is a button in the Actions block or in a block of the team's own, and the fact can be shown in any block. The layout decides where.
+
+Most cases should need no code, only a pattern and an effect from the list. For the rest, a fact or an action can be a script: a program that gets the pull request as JSON and answers with facts or with an effect to carry out.
+
+Agent support is the same idea seen from outside:
+
+- **Files.** Views, layouts, rules, facts, and actions each live as plain files in one configuration folder, in a format with a published schema. The app watches the folder and reloads. A file that does not validate is not applied: the app keeps the last good version and shows the problem.
+- **A command line.** `github-pr-explorer` can validate the configuration, run a filter against the index, show a pull request with its facts, say which layout rule matched and why, and run an action. An agent uses it to check its own work.
+- **MCP.** The same operations as tools, so an agent in a chat can do them without a shell.
+- **History.** Every change to the folder is kept, whoever made it. The command line lists versions, shows what changed, and restores one.
+
 ## Phases
 
 Estimates are agent build time. The calendar is set by how fast the owner can react to designs and probes.
@@ -76,6 +97,7 @@ Each probe is timeboxed and its only output is a narrower range or an answer. Re
 4. **Diff from a local clone.** Compute and draw a 5,000-line diff natively from a partial clone, and compare the time and the result with the API's patches. Field-checked.
 5. **Description without a web view.** Draw a real pull request body natively: tables, images, task lists, collapsed sections. Judgment call.
 6. **Edit Layout feel.** A throwaway window where blocks drag between positions and tabs. Judgment call, budget of 2 review rounds.
+7. **The checkbox bot, end to end from files.** With the index in place, write the owner's example as a fact and an action in configuration files, have an agent do it from a one-sentence request using only the command line, and see what it could not do. Field-checked, half a day, after phase 2.
 
 ## Open questions for the owner
 
@@ -102,6 +124,15 @@ Each has a recommendation. An answer moves to `planning/decided.md`.
 
 10. **Does the research change the vision's emphasis?** If reviewing outside the browser is common and team-arranged pages are not, the blocks and rules are what this app is for, and the index is what makes them fast.
     Recommendation: keep all six principles, and say in the identity lines that the page a team arranges for itself is the point. Worth an hour with Pulldog and Linear Diffs first.
+
+11. **What format are the configuration files?** It has to be easy for a person to read, easy for an agent to write correctly, and checkable against a schema.
+    Recommendation: JSON with a published JSON Schema, one file per thing. Agents write it reliably and the schema catches mistakes. TOML reads better by eye, so this is a taste call.
+12. **How is configuration history kept?** You asked for something minimal, built in from the start.
+    Recommendation: the configuration folder is a local git repository and the app commits every valid change. That gives history, diffs, and restore for free, agents already know git, and a team can later share the folder by adding a remote.
+13. **May a shared configuration run scripts?** A script from a teammate's configuration is code running on your Mac.
+    Recommendation: patterns and listed effects run without asking. A script runs only after the person has approved that exact file, and is asked again when it changes.
+14. **How much is "90%"?** Sign-in and macOS permission prompts cannot be done by an agent.
+    Recommendation: the rule is that everything except sign-in and permission grants can be done from files, the command line, or MCP.
 
 ## Design rows in Figma
 

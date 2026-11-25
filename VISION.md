@@ -3,6 +3,7 @@
 > Draft, written on 2026-11-25 from the owner's first description of the idea.
 > The owner has not approved it yet.
 > There is no history to mine, so each line traces to something the owner said, not to merged work.
+> "Teams add their own facts and actions" and "An agent can set it up" were added the same day, from the owner's second note.
 
 `github-pr-explorer` exists so that finding, reading, and deciding on a pull request never waits on a web page.
 It serves people and teams who spend their day in GitHub pull requests.
@@ -47,6 +48,21 @@ A page shows what its layout puts there and nothing else.
 The layouts that ship leave out what most reviewers skip.
 What is left out is one step away, and never gone.
 
+## Teams add their own facts and actions
+
+A team can teach the index new facts, drawn from what a pull request already holds, such as a bot's comment.
+A fact a team adds is a fact like any other: it can be filtered on, shown in a block, and used in a rule.
+A team can add its own actions, and they appear as buttons where the team's layout puts them.
+A team's action reaches GitHub the way a built-in one does: applied here first, then sent, and put back if GitHub refuses.
+The app does not need to know what a team's automation is for.
+
+## An agent can set it up
+
+Everything a person can configure is a plain file, and the app's own Settings writes those same files.
+The same things can be read and changed from a command line and over MCP.
+Every change to configuration is kept, and any earlier version can be brought back.
+A person can tell their agent what they want and get nearly all of the way there without opening Settings.
+
 ## The review finishes here
 
 A person can read, comment, approve, and merge without opening a browser.
@@ -64,4 +80,4 @@ It is not a wrapper around GitHub's web page.
 
 A change aligns when it makes a pull request faster to find, read, or decide on from the index, or gives a team more say over what its page shows.
 
-A change should be resisted when it makes a screen wait on the network, gives a block a place the team cannot change, adds a second way to write a filter, hides how old or how certain a fact is, or keeps review state that GitHub does not have.
+A change should be resisted when it makes a screen wait on the network, gives a block a place the team cannot change, adds a second way to write a filter, hides how old or how certain a fact is, keeps review state that GitHub does not have, builds in one team's automation where a team could have configured it, or adds a setting that an agent cannot reach.

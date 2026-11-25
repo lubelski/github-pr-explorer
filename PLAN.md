@@ -116,3 +116,4 @@ File: https://www.figma.com/design/XslUM40a0h5IXEs7tXtAqZ
 | 5 | Layout rules | Not reviewed |
 | 6 | Freshness, pending actions, and offline | Not reviewed |
 | 7 | Block catalogue | Not reviewed |
+| 8 | The diff as a pane that slides in over the pull request, after the pane stack in `mac-os-agent`'s Settings. A second answer to row 2. | Not reviewed |

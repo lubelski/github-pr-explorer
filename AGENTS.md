@@ -31,7 +31,9 @@ These follow from the vision. They are here so a session does not have to derive
 
 - Work in a numbered worktree under `.wt/` (for example `.wt/wt-01`), on a branch. Keep the primary checkout on `main`.
 - Commit and push as you work, and open a pull request early.
-- Ask the owner before merging. This repository has no merge rule of its own yet.
+- Merge your own pull requests as you work, squashed, once the checks you can run pass. This goes for subagents too. The app has no users until the owner installs it on his Mac (owner's direction, 2026-11-25).
+- Still hold a pull request for the owner when it changes what `VISION.md` says, or when it sets up anything on his Mac.
+- Build against mock data. The core library carries a large, fixed set of placeholder pull requests, and every view must work from it with no network and no sign-in. When a feature needs a case the mock data lacks, add the case in the same pull request (owner's direction, 2026-11-25).
 - When the first code lands, the app follows the scheme the owner's other Mac apps share: a Swift package with a core library, an app target, and tests, `scripts/bundle.sh`, Sparkle updates, and `scripts/release.sh`. `mac-os-agent` is the reference to copy from.
 - Use placeholder names in designs, fixtures, screenshots, and test data: the org `acme`, people such as Ada Park and Sam Rivera. Never real people, repos, or pull requests.
 

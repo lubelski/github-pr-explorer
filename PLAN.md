@@ -2,15 +2,17 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after the first window.
+Last updated 2026-11-25, after Sparkle, the release script and the icon.
 
 ## Where we are
 
 Phase 0, with the first code in. The vision is drafted and waiting for the owner, the design rows in Figma are waiting for the owner, and two research files are in `planning/research/`. The core library, a large deterministic mock world of 298 placeholder pull requests, and `github-pr-explorer-ctl` are built and tested, so views can be built with no network and no sign-in.
 
-The first window is built on the mock world (MAC-46): the open pull requests in a searchable list, and the page drawn as blocks from a layout document, with "Decision first" and "Tabbed" built in. It is for the owner to judge rows 1 and 2 as a running app. The actions do nothing yet, the header is fixed above the tabs, and there is no sync, Edit Layout, or layout rules. The icon, Sparkle, and releases are MAC-47.
+The first window is built on the mock world (MAC-46): the open pull requests in a searchable list, and the page drawn as blocks from a layout document, with "Decision first" and "Tabbed" built in. It is for the owner to judge rows 1 and 2 as a running app. The actions do nothing yet, the header is fixed above the tabs, and there is no sync, Edit Layout, or layout rules.
 
 Design row 8 is built for trial (MAC-53): selecting a file in the Files block slides the diff in as a pane over the page's blocks, with a file tree, inline and side by side modes, and a review thread as a second pane over the diff. It is the first answer to open question 4 to try in the app. Reply and Resolve do nothing yet.
+
+The app ships the way the owner's other Mac apps do (MAC-47): Sparkle updates signed with the shared key, `scripts/release.sh`, notarization, and an icon drawn in Swift. The repository is public. Until the app has real users, `main` is test-in-production: once `mac-app-release-poller` is configured for this repo, a merge that touches shipping files reaches the owner's Macs within minutes. Adding the repo to the poller is the owner's step.
 
 The owner's first look at the window brought small changes (MAC-55): the app's name shows once, centered; freshness, the version and commit, and the layout menu sit at the right end of the title bar; the footer is gone; the list's width can be dragged; and a row above the list picks one of three fixed views, "Needs my review", "Mine" and "Everything open". The views are plain predicates until the filter language exists.
 
@@ -109,6 +111,8 @@ Each probe is timeboxed and its only output is a narrower range or an answer. Re
 
 Each has a recommendation. An answer moves to `planning/decided.md`.
 
+The numbers stay fixed so other notes can point at them. Question 8, whether the repository is public, was answered on 2026-11-25: the owner made it public.
+
 1. **Who is it for first?** You alone, a team you are on, or the public. This decides sign-in, how layouts are shared, and how much setup is tolerable.
    Recommendation: you and one team, signing in with the `gh` login.
 2. **Does the first usable version write to GitHub?** The vision says a review finishes here.
@@ -123,8 +127,6 @@ Each has a recommendation. An answer moves to `planning/decided.md`.
    Recommendation: a plain file format from the start, and decide the location later.
 7. **How far does scraping go?** It can break without notice and GitHub's terms limit it.
    Recommendation: use it only for facts no API supplies, and behind the same source interface so it can be turned off.
-8. **Is the repository public?** The shared Mac app scheme says public. It was created private on 2026-11-25 because the vision is unapproved.
-   Recommendation: make it public when the vision is approved.
 9. **What happens to `github-pr-watch-menubar`?** It is set aside for now.
    Recommendation: leave it running as it is, and revisit once this app has an index, since notifying could then come from here.
 

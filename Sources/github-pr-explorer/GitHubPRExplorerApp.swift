@@ -9,7 +9,8 @@ struct GitHubPRExplorerApp: App {
         index: MockWorld.standard.index,
         now: MockWorld.now,
         library: .builtIn(),
-        selection: MockWorld.workedExample)
+        selection: MockWorld.workedExample,
+        windowState: .standard)
 
     var body: some Scene {
         Window(AppName.display, id: "main") {

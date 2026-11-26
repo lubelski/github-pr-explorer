@@ -1,8 +1,9 @@
 import GitHubPRExplorerCore
 import SwiftUI
 
-/// One pull request: a fixed header, a tab strip when the layout has more than one tab, the
-/// selected tab's blocks in columns, and a footer with freshness and the layout menu.
+/// One pull request: a fixed header, a tab strip when the layout has more than one tab, and the
+/// selected tab's blocks in columns, down to the window's bottom edge. Freshness and the layout
+/// menu are in the title bar, in `TitleBarStatus`.
 struct PullRequestPage: View {
     @Bindable var model: AppModel
     let pullRequest: PullRequest
@@ -22,8 +23,6 @@ struct PullRequestPage: View {
                     // Each tab keeps its own scroll position and block state.
                     .id("\(layout.id)/\(tabIndex)")
             }
-            Divider()
-            PageFooter(model: model, pullRequest: pullRequest)
         }
         .background(Style.pageBackground)
     }
@@ -186,45 +185,5 @@ struct BlockGrid: View {
                 }
             }
         }
-    }
-}
-
-struct PageFooter: View {
-    @Bindable var model: AppModel
-    let pullRequest: PullRequest
-
-    var body: some View {
-        let freshness = Freshness(provenance: pullRequest.provenance, now: model.now)
-        HStack(spacing: 12) {
-            Text(freshness.summary)
-                .help(freshness.details.joined(separator: "\n"))
-            if !model.library.problems.isEmpty {
-                let count = model.library.problems.count
-                Label(count == 1 ? "A layout file could not be read" : "\(count) layout files could not be read",
-                      systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
-                    .help(model.library.problems.map(\.description).joined(separator: "\n"))
-            }
-            Spacer()
-            Menu {
-                Picker("Layout", selection: $model.layoutID) {
-                    ForEach(model.library.layouts) { layout in
-                        Text(layout.name).tag(layout.id)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            } label: {
-                Text("Layout: \(model.layout.name)")
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .fixedSize()
-        }
-        .font(Style.secondary)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 6)
-        .background(Style.surface)
     }
 }

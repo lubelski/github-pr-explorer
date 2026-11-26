@@ -10,6 +10,8 @@ Phase 0, with the first code in. The vision is drafted and waiting for the owner
 
 The first window is built on the mock world (MAC-46): the open pull requests in a searchable list, and the page drawn as blocks from a layout document, with "Decision first" and "Tabbed" built in. It is for the owner to judge rows 1 and 2 as a running app. The actions do nothing yet, the header is fixed above the tabs, and there is no sync, Edit Layout, layout rules, or diff. The icon, Sparkle, and releases are MAC-47.
 
+The owner's first look at the window brought small changes (MAC-55): the app's name shows once, centered; freshness, the version and commit, and the layout menu sit at the right end of the title bar; the footer is gone; the list's width can be dragged; and a row above the list picks one of three fixed views, "Needs my review", "Mine" and "Everything open". The views are plain predicates until the filter language exists.
+
 ## What the research says
 
 Both files were written by research agents on 2026-11-25. Each keeps what it checked apart from what it only read. Nobody has re-checked them yet.

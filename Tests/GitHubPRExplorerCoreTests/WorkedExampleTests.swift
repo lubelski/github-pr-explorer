@@ -144,6 +144,20 @@ import Testing
         }
     }
 
+    /// The designs show threads needing the viewer. The viewer is asked to review as
+    /// `@acme/security`, which owns `auth/`, so the two threads there need them. Max's thread on
+    /// `api/routes/login.ts` is outside what security owns and waits on the author.
+    @Test func twoThreadsNeedTheViewerAsCodeOwner() {
+        let needing = pr.threadsNeedingAttention(from: world.viewer)
+        #expect(needing.map(\.path) == ["auth/middleware.ts", "auth/session.ts"])
+        #expect(pr.isReviewOfPathRequested(from: world.viewer, path: "auth/session.ts"))
+        #expect(!pr.isReviewOfPathRequested(from: world.viewer, path: "api/routes/login.ts"))
+        // Someone who is not asked to review, and not in any thread, is not asked about the files.
+        let other = Viewer(person: MockCast.tomasReyes, teams: [])
+        #expect(!pr.isReviewOfPathRequested(from: other, path: "auth/session.ts"))
+        #expect(pr.threadsNeedingAttention(from: other).isEmpty)
+    }
+
     @Test func thirtyOneTimelineEvents() { #expect(pr.timeline.count == 31) }
     @Test func seventeenFromBots() { #expect(pr.botTimelineEvents.count == 17) }
     @Test func fourteenFromPeople() { #expect(pr.humanTimelineEvents.count == 14) }

@@ -5,10 +5,12 @@ extension ReviewThread {
     ///
     /// A thread needs the viewer when it is unresolved, not outdated, its last comment is by
     /// someone else, and the viewer has a stake in it: the viewer wrote the pull request,
-    /// commented in the thread, or is mentioned in it by `@login`.
-    public func needsAttention(from viewer: Viewer, pullRequestAuthor: Person) -> Bool {
+    /// commented in the thread, is mentioned in it by `@login`, or is asked to review the file
+    /// it is on as its code owner (`viewerOwnsFile`).
+    public func needsAttention(from viewer: Viewer, pullRequestAuthor: Person, viewerOwnsFile: Bool = false) -> Bool {
         guard !isResolved, !isOutdated, let last = lastComment, !viewer.isViewer(last.author) else { return false }
         if viewer.isViewer(pullRequestAuthor) { return true }
+        if viewerOwnsFile { return true }
         if comments.contains(where: { viewer.isViewer($0.author) }) { return true }
         let mention = viewer.person.handle
         return comments.contains { $0.body.contains(mention) }
@@ -38,7 +40,22 @@ extension PullRequest {
 
     /// Threads waiting on the viewer. See `ReviewThread.needsAttention(from:pullRequestAuthor:)`.
     public func threadsNeedingAttention(from viewer: Viewer) -> [ReviewThread] {
-        reviewThreads.filter { $0.needsAttention(from: viewer, pullRequestAuthor: author) }
+        reviewThreads.filter {
+            $0.needsAttention(from: viewer, pullRequestAuthor: author, viewerOwnsFile: isReviewOfPathRequested(from: viewer, path: $0.path))
+        }
+    }
+
+    /// True when a review is asked of the viewer as a code owner of `path`: the request names the
+    /// viewer or one of the viewer's teams, and that person or team owns the path by CODEOWNERS.
+    /// A security reviewer is asked about `auth/`, not about every file in the pull request.
+    public func isReviewOfPathRequested(from viewer: Viewer, path: String) -> Bool {
+        guard !viewer.isViewer(author) else { return false }
+        let owners = Set(codeOwners.filter { $0.paths.contains(path) }.flatMap(\.owners))
+        guard !owners.isEmpty else { return false }
+        return reviewRequests.contains { request in
+            guard request.isRequested(from: viewer) else { return false }
+            return owners.contains(request.reviewer.handle)
+        }
     }
 
     /// Timeline events by people and agents, leaving out bots.

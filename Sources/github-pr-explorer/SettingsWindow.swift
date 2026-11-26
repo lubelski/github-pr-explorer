@@ -155,7 +155,7 @@ struct GeneralSettingsView: View {
                     }
                 } label: {
                     Text("Default layout")
-                    Text("Every pull request page opens with it. The layout menu in the window changes only the window you are in.")
+                    Text("Every pull request page opens with it. The Layout menu under the cog in the title bar changes only the window you are in.")
                 }
                 Toggle(isOn: Binding(get: { settings.hidesBotEventsInActivity }, set: { configuration.setHidesBotEvents($0) })) {
                     Text("Hide bot events in Activity at first")

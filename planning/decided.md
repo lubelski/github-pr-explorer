@@ -46,19 +46,29 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
   - Both are JSON resource files in the core library, read through the same decoding a person's own file goes through. The layout menu at the right end of the title bar switches between them and the person's own layouts, for the open window only. Settings holds the default.
 - The header is fixed above the tabs, for now
   - The repository and number, title, status sentence, and action buttons sit above the tabs and are not a block. This is temporary. `VISION.md` says no block has a fixed place, so the header becomes a block, or blocks, when Edit Layout arrives.
-  - The action buttons are disabled with the tooltip "Not connected to GitHub yet". The line under them says why Merge is unavailable when it is.
+  - The action buttons are disabled. The line under them says "Read-only for now", after why Merge is unavailable when it is, and the tooltip says this version reads pull requests and does not write to GitHub yet. It was "Not connected to GitHub yet" until MAC-69, which read as false once the data came from GitHub. One wording serves the mock world and GitHub.
 - The page reads a fixed clock
   - The window measures every age from `MockWorld.now`, so it reads the same on every run. Freshness at the right end of the title bar is the oldest section's age, so it never claims more than is true, and its tooltip lists each section with its source.
 - The main window has no footer, and status sits in the title bar (MAC-55)
   - The app's name is drawn once, centered. The system's own title is hidden with SwiftUI's `.toolbar(removing: .title)`, and the title bar helper hides it again if anything turns it back on, because SwiftUI can reset it on a `Window` scene's window after the helper last ran. Renders use a plain `NSWindow`, so they never showed the second title.
   - The right end of the title bar holds, right-aligned in quiet secondary text: the selected pull request's freshness (its tooltip lists each section's age and source), a warning when a layout file could not be read, the version, build and commit as `bundle.sh` stamps them ("0.1 (4) · b41c422"), and last a small menu that shows the current layout's name and lists the layouts. The update indicator sits between the version and the layout menu (MAC-47, below). Renders show a fixed "0.1 (0) · preview" so they read the same at every commit.
   - The layout menu is in the title bar for now. Edit Layout and layout rules may move it.
+  - Since MAC-69 the layout menu is a cog with a menu, last at the right end: Layout as a submenu with the current layout checked, Sync Now (turned off unless pull requests come from GitHub, and it keeps to the sync's rate limit rules), Settings, and Check for Updates (turned off in a build that cannot update itself). The title bar no longer shows the layout's name.
+  - Since MAC-69 the button that shows and hides the list sits in the title bar just after the window buttons, so it is there while the list is hidden. The search field has the list's full width.
 - The list has three fixed views (MAC-55)
   - "Needs my review": open pull requests where a review is asked of the viewer or one of the viewer's teams, never the viewer's own. "Mine": open pull requests the viewer wrote. "Everything open": every open pull request. Each shows its count within the search, and the search narrows within the chosen view.
   - They are plain predicates in the core library (`FixedListView`), not the filter language and not saved views. When the filter language arrives they become built-in filters written in it, and the type goes away rather than becoming a second way to write a condition.
   - The list starts in "Needs my review", because the vision is about deciding on pull requests and that view is the ones waiting on the viewer. The worked example, `acme/api #4826`, is in it. In the mock world the counts are 48, 12 and 218.
   - Changing the view keeps the open page, even when that pull request is not in the new view.
   - When the list is too narrow for the full names, the row uses short ones: "Review", "Mine", "All open".
+- The list has filters beside its views (MAC-69)
+  - A filter button at the end of the views row opens a menu with Status, Repository, Author, Review and Drafts. The choices come from the open pull requests in the index, and a value already chosen stays offered when nothing has it any more. Values in one field are either-or, and every field that is on must pass.
+  - Filters combine with the chosen view and the search. The views' counts include the filters, so a count is always the number of rows choosing that view shows. A line under the views says which filters are on and clears them, and an empty list offers Clear Filters, so the list never hides pull requests without saying so.
+  - The filters are not remembered across launches, like the search. A filter worth keeping is a saved view, which the filter language will bring.
+  - They are `ListFilter` in the core library: plain predicates with no syntax, given as clauses of the form "field is one of values", so the filter language can replace them as it will replace `FixedListView`.
+- A list row has three lines and a badge (MAC-69)
+  - The title, which wraps to a second line when it must. Then the repository and number with the author, where a long repository name gives way in the middle and the author is left out before the number is hidden. Then the status's detail, such as "e2e-chrome failed, 3 threads unresolved". A short badge in the color of its tone sits at the right of the second and third lines.
+  - The badge and the detail come from `StatusSentence`. The badges are Draft, Merging, Blocked, Changes, Running, Failing, Threads, Waiting, Behind, Checking, Ready, Merged and Closed. CI running and checks queued are both Running, and waiting on reviewers and needing a review are both Waiting. The detail does not repeat the badge and leaves out "Review requested from you".
 - The list's width follows a drag on its trailing edge (MAC-55)
   - From 260 to 480 points, 300 by default. Double-clicking the edge puts it back to 300. In a small window the list gives way so the page keeps at least 600 points, without forgetting the width chosen.
 - Window state is not configuration (MAC-55)
@@ -71,7 +81,7 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
   - Escape closes one pane, and so does the pane's back button ("‹ Pull request", "‹ Files"). With no pane open, Escape does what it did before. Panes slide with a 0.28-second spring with no bounce, or fade with Reduce Motion.
   - The panes belong to the selected pull request. Choosing another closes them.
   - Clicking a thread in the Threads block opens its file's diff with the thread on top, scrolled to its line. A thread whose file is not among the changed files does not open.
-  - The thread pane is 420 points: the file and line, the quoted line, each comment with its author and age, and a Reply field with Resolve and Reply, disabled with "Not connected to GitHub yet".
+  - The thread pane is 420 points: the file and line, the quoted line, each comment with its author and age, and a Reply field with Resolve and Reply, disabled with the same read-only note as the action buttons.
 - The diff pane's width rule
   - The page's strip is 300 points. It narrows to a 24-point sliver in side by side mode, with a thread open, or when a full strip and a 220-point file tree would leave the diff less than 720 points. Then the tree narrows to a 40-point rail, in side by side mode or when the full tree would still leave less than 720. The page gives way before the tree, as the oldest strip does in the stack. `DiffPaneLayout` holds the rule, and `PaneStackLayout` has the last word in a very narrow window.
   - At the app's default size, with the list showing, the page is a sliver even inline: 1,180 points less 300 and 220 is under 720.

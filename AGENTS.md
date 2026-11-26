@@ -23,6 +23,7 @@ These follow from the vision. They are here so a session does not have to derive
 - A new piece of pull request information is a new block. Do not give anything a fixed place on the page.
 - Every setting is a plain file in the configuration folder. Settings in the app writes those files. Nothing configurable lives only in the window or in preferences.
 - Whatever can be configured can also be read and changed from the command line and over MCP. Add those in the same pull request as the setting.
+- Configuration lives in `~/Library/Application Support/github-pr-explorer/config/`, read and written only through `ConfigurationStore`. Tests and renders always pass a temporary folder and never touch the real one.
 - Do not build one team's automation into the app. Give teams the parts: a fact drawn from the pull request, an action, a block.
 - Native Swift for the current macOS only. Prefer SwiftUI, and use AppKit where SwiftUI cannot do the job. No embedded web page of github.com.
 - Name things in full: `github-pr-explorer`, not an abbreviation.

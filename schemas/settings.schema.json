@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lubelski/github-pr-explorer/schemas/settings.schema.json",
+  "title": "github-pr-explorer settings",
+  "description": "settings.json in the configuration folder (~/Library/Application Support/github-pr-explorer/config). The app's Settings window writes this file, and the app applies a change as soon as the file is saved. Only formatVersion is required: a key left out takes its default. A key not listed here makes the file invalid, and the app keeps using the last version that worked.",
+  "type": "object",
+  "required": ["formatVersion"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "Optional. A link to this schema, for editors. The app ignores it.",
+      "type": "string"
+    },
+    "formatVersion": {
+      "description": "The version of this file's format. This app reads version 1 only.",
+      "type": "integer",
+      "enum": [1]
+    },
+    "appearance": {
+      "description": "Light, dark, or whatever the system uses. Default: system.",
+      "type": "string",
+      "enum": ["system", "light", "dark"],
+      "default": "system"
+    },
+    "defaultLayout": {
+      "description": "The id of the layout every pull request page opens with: a built-in layout (decision-first, tabbed) or the id of a file in layouts/. When no layout has this id, Decision first is used and the problem is reported. The layout menu in the window changes the open window only. Default: decision-first.",
+      "type": "string",
+      "minLength": 1,
+      "default": "decision-first"
+    },
+    "hidesBotEventsInActivity": {
+      "description": "When true, the Activity block starts with events from bots folded into one row that can be opened. Default: true.",
+      "type": "boolean",
+      "default": true
+    },
+    "updatesAutomatically": {
+      "description": "When true, a release build checks for updates about once a day, downloads them, and offers to restart into them, installing on quit otherwise. When false, it updates only through Check for Updates. A development build has no update feed and ignores it. Default: true.",
+      "type": "boolean",
+      "default": true
+    },
+    "experiments": {
+      "description": "Features being tried, by name, each true for on. One left out is off. A name the app does not know makes the file invalid. There are no experiments right now, so this is {}.",
+      "type": "object",
+      "default": {},
+      "propertyNames": { "enum": [] },
+      "additionalProperties": { "type": "boolean" }
+    }
+  }
+}

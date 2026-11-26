@@ -17,18 +17,27 @@ struct ControlCommandResult: Equatable {
     }
 }
 
-/// `github-pr-explorer-ctl`: inspect the index from the command line. Today it reads the mock world.
+/// `github-pr-explorer-ctl`: inspect the index from the command line, and read and change the
+/// configuration folder. The index today is the mock world.
 enum ControlCommand {
     static let name = "github-pr-explorer-ctl"
 
     static let help = """
-        \(name): inspect github-pr-explorer's pull request index from the command line.
-        It reads the built-in mock world. Nothing here uses the network.
+        \(name): inspect github-pr-explorer's pull request index, and read and change its
+        configuration, from the command line. The index is the built-in mock world. Nothing
+        here uses the network.
 
         Commands:
           pull-requests list     One line per pull request: reference, status, title.
           pull-request show      Every section of one pull request.
           mock-data export       Write the mock world to JSON files.
+          config                 The configuration folder: path, validate, show, set, history,
+                                 diff, restore.
+          layouts                Page layouts: list, show, duplicate.
+
+        Options:
+          --config <folder>      For config and layouts: use this configuration folder instead
+                                 of the app's.
 
         Run `\(name) <command> --help` for a command's options.
         """
@@ -69,6 +78,12 @@ enum ControlCommand {
         """
 
     static func run(_ arguments: [String], world: MockWorld = .standard) -> ControlCommandResult {
+        var arguments = arguments
+        let folder: URL
+        switch configurationFolder(from: &arguments) {
+        case .success(let url): folder = url
+        case .failure(let error): return .failure(error.message, exitCode: 2)
+        }
         guard let first = arguments.first else { return .failure(help + "\n", exitCode: 2) }
         if first == "--help" || first == "-h" || first == "help" { return .success(help + "\n") }
         let rest = Array(arguments.dropFirst())
@@ -91,6 +106,10 @@ enum ControlCommand {
                 return .failure("Unknown command: mock-data \(rest.first ?? "").\n\n\(exportHelp)\n", exitCode: 2)
             }
             return export(Array(rest.dropFirst()), world: world)
+        case "config":
+            return config(rest, folder: folder)
+        case "layouts":
+            return layouts(rest, folder: folder)
         default:
             return .failure("Unknown command: \(first).\n\n\(help)\n", exitCode: 2)
         }

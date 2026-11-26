@@ -196,6 +196,7 @@ extension ControlCommand {
         text += "  appearance                \(settings.appearance.rawValue)\n"
         text += "  defaultLayout             \(settings.defaultLayout)\n"
         text += "  hidesBotEventsInActivity  \(settings.hidesBotEventsInActivity)\n"
+        text += "  updatesAutomatically      \(settings.updatesAutomatically)\n"
         if Experiment.allCases.isEmpty {
             text += "  experiments               none right now\n"
         } else {

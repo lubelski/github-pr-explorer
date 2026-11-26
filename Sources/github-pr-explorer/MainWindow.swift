@@ -9,17 +9,28 @@ import SwiftUI
 /// end of the title bar. There is no footer.
 struct MainWindowView: View {
     @Bindable var model: AppModel
+    /// The updater, for the indicator in the title bar when an update waits.
+    var updater: AppUpdater
 
     /// The narrowest the page gets beside the list. The list gives way to it in a small
     /// window, without forgetting the width the person chose.
     static let minimumPageWidth: CGFloat = 600
+
+    /// Below this window width the title bar's update indicator shows only its symbol, so the
+    /// status at the right end does not run into the centered name.
+    static let compactTitleBarWidth: CGFloat = 1200
+
+    @State private var windowWidth: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
             content(listWidth: shownListWidth(windowWidth: proxy.size.width))
         }
         .background(Style.pageBackground)
-        .standardTitleBar { TitleBarStatus(model: model) }
+        .onGeometryChange(for: CGFloat.self, of: \.size.width) { windowWidth = $0 }
+        .standardTitleBar {
+            TitleBarStatus(model: model, updater: updater, compact: windowWidth < Self.compactTitleBarWidth)
+        }
     }
 
     private func shownListWidth(windowWidth: CGFloat) -> CGFloat {

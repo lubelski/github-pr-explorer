@@ -18,6 +18,8 @@ enum ConfigurationReadme {
           - `defaultLayout`: the id of the layout pull request pages open with, such as
             `"decision-first"` or `"tabbed"`.
           - `hidesBotEventsInActivity`: `true` to start Activity with bot events folded into one row.
+          - `updatesAutomatically`: `true` for a release build to check for, download and install
+            updates on its own. `false` to check only with Check for Updates.
           - `experiments`: features being tried, by name, such as `{"someExperiment": true}`.
             One left out is off.
           A key left out takes its default. A key the app does not know makes the file invalid.

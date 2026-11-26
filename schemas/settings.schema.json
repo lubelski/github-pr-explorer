@@ -33,6 +33,11 @@
       "type": "boolean",
       "default": true
     },
+    "updatesAutomatically": {
+      "description": "When true, a release build checks for updates about once a day, downloads them, and offers to restart into them, installing on quit otherwise. When false, it updates only through Check for Updates. A development build has no update feed and ignores it. Default: true.",
+      "type": "boolean",
+      "default": true
+    },
     "experiments": {
       "description": "Features being tried, by name, each true for on. One left out is off. A name the app does not know makes the file invalid. There are no experiments right now, so this is {}.",
       "type": "object",

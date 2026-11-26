@@ -22,7 +22,7 @@ enum JSONKeyCheck {
 
     static let settingsShape = Shape.object([
         "formatVersion": .value, "appearance": .value, "defaultLayout": .value,
-        "hidesBotEventsInActivity": .value, "experiments": .dictionary(.value),
+        "hidesBotEventsInActivity": .value, "updatesAutomatically": .value, "experiments": .dictionary(.value),
     ])
 
     static let layoutShape = Shape.object([

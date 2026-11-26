@@ -10,6 +10,7 @@ import SwiftUI
 struct GitHubPRExplorerApp: App {
     @State private var model: AppModel
     @State private var configuration: ConfigurationModel
+    @State private var updater: AppUpdater
 
     init() {
         let model = AppModel(
@@ -19,19 +20,24 @@ struct GitHubPRExplorerApp: App {
             selection: MockWorld.workedExample,
             windowState: .standard)
         let configuration = ConfigurationModel(store: ConfigurationStore(folder: ConfigurationStore.defaultFolder))
+        let updater = AppUpdater()
         // Every change, from Settings, a hand edit or ctl, reaches the open window at once.
         configuration.onApply = { [weak model] snapshot, previous in
             model?.apply(snapshot, previous: previous)
             AppAppearance.apply(snapshot.settings.appearance)
+            // settings.json is where this setting lives. Sparkle keeps its own copy, which is
+            // set from the file on launch and on every change.
+            updater.updatesAutomatically = snapshot.settings.updatesAutomatically
         }
         configuration.start()
         _model = State(initialValue: model)
         _configuration = State(initialValue: configuration)
+        _updater = State(initialValue: updater)
     }
 
     var body: some Scene {
         Window(AppName.display, id: "main") {
-            MainWindowView(model: model)
+            MainWindowView(model: model, updater: updater)
                 .environment(\.hidesBotEventsInActivity, model.hidesBotEventsInActivity)
                 .frame(minWidth: 900, minHeight: 560)
                 // NSApp does not exist yet when the app is made, so the appearance is applied
@@ -41,6 +47,12 @@ struct GitHubPRExplorerApp: App {
         .defaultSize(width: 1480, height: 900)
         .windowResizability(.contentMinSize)
         .commands {
+            CommandGroup(after: .appInfo) {
+                if updater.isAvailable {
+                    Button(AppUpdater.checkTitle) { updater.checkForUpdates() }
+                        .disabled(!updater.canCheck)
+                }
+            }
             CommandGroup(after: .sidebar) {
                 Button(model.showsList ? "Hide Pull Request List" : "Show Pull Request List") {
                     withAnimation(.snappy) { model.showsList.toggle() }
@@ -52,7 +64,7 @@ struct GitHubPRExplorerApp: App {
         // The Settings scene puts Settings… in the app menu, with Command-comma.
         Settings {
             SettingsRootView(configuration: configuration,
-                             context: SettingsContext(build: .current, world: .standard))
+                             context: SettingsContext(build: .current, world: .standard, updater: updater))
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: SettingsRootView.size.width, height: SettingsRootView.size.height)

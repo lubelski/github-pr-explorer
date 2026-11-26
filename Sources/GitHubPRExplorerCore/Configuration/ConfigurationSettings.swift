@@ -18,26 +18,30 @@ public struct ConfigurationSettings: Codable, Sendable, Hashable {
     public var defaultLayout: String
     /// Whether Activity starts with bot events folded into one row.
     public var hidesBotEventsInActivity: Bool
+    /// Whether a release build checks for, downloads and installs updates without asking.
+    /// A build with no update feed ignores it.
+    public var updatesAutomatically: Bool
     /// The experiments that are on, by name. One left out is off.
     public var experiments: [String: Bool]
 
     public init(formatVersion: Int = currentFormatVersion, appearance: Appearance = .system,
                 defaultLayout: String = LayoutLibrary.fallbackID, hidesBotEventsInActivity: Bool = true,
-                experiments: [String: Bool] = [:]) {
+                updatesAutomatically: Bool = true, experiments: [String: Bool] = [:]) {
         self.formatVersion = formatVersion
         self.appearance = appearance
         self.defaultLayout = defaultLayout
         self.hidesBotEventsInActivity = hidesBotEventsInActivity
+        self.updatesAutomatically = updatesAutomatically
         self.experiments = experiments
     }
 
     public static let defaults = ConfigurationSettings()
 
     /// The keys a settings file may hold, for the unknown-key check and `config set`.
-    public static let keys = ["formatVersion", "appearance", "defaultLayout", "hidesBotEventsInActivity", "experiments"]
+    public static let keys = ["formatVersion", "appearance", "defaultLayout", "hidesBotEventsInActivity", "updatesAutomatically", "experiments"]
 
     enum CodingKeys: String, CodingKey {
-        case formatVersion, appearance, defaultLayout, hidesBotEventsInActivity, experiments
+        case formatVersion, appearance, defaultLayout, hidesBotEventsInActivity, updatesAutomatically, experiments
     }
 
     public init(from decoder: any Decoder) throws {
@@ -48,6 +52,8 @@ public struct ConfigurationSettings: Codable, Sendable, Hashable {
         defaultLayout = try container.decodeIfPresent(String.self, forKey: .defaultLayout) ?? defaults.defaultLayout
         hidesBotEventsInActivity = try container.decodeIfPresent(Bool.self, forKey: .hidesBotEventsInActivity)
             ?? defaults.hidesBotEventsInActivity
+        updatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .updatesAutomatically)
+            ?? defaults.updatesAutomatically
         experiments = try container.decodeIfPresent([String: Bool].self, forKey: .experiments) ?? defaults.experiments
     }
 

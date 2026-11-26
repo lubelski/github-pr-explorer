@@ -300,7 +300,7 @@ public final class ConfigurationStore {
 
     /// The keys `set(key:value:)` takes.
     public static var settableKeys: [String] {
-        ["appearance", "defaultLayout", "hidesBotEventsInActivity"] + Experiment.allCases.map { "experiments.\($0.key)" }
+        ["appearance", "defaultLayout", "hidesBotEventsInActivity", "updatesAutomatically"] + Experiment.allCases.map { "experiments.\($0.key)" }
     }
 
     /// Sets one setting from text, as `ctl config set` does. Returns what changed, in a sentence.
@@ -326,6 +326,10 @@ public final class ConfigurationStore {
             guard let flag = Self.bool(value) else { throw ConfigurationError("\(key) is true or false, not \"\(value)\".") }
             summary = flag ? "Bot events start hidden in Activity" : "Bot events start shown in Activity"
             change = { $0.hidesBotEventsInActivity = flag }
+        case "updatesAutomatically":
+            guard let flag = Self.bool(value) else { throw ConfigurationError("\(key) is true or false, not \"\(value)\".") }
+            summary = flag ? "Updates install automatically" : "Updates wait to be checked for by hand"
+            change = { $0.updatesAutomatically = flag }
         default:
             if key.hasPrefix("experiments."), let experiment = Experiment(key: String(key.dropFirst("experiments.".count))) {
                 guard let flag = Self.bool(value) else { throw ConfigurationError("\(key) is true or false, not \"\(value)\".") }

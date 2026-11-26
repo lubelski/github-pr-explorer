@@ -204,6 +204,20 @@ let myLayout = """
         #expect(misnamed.entry(id: "mine") == nil)
     }
 
+    @Test func updatesAutomaticallyIsASettingLikeAnyOther() throws {
+        let config = TemporaryConfiguration()
+        try config.store.prepare(author: .app)
+        #expect(config.store.snapshot.settings.updatesAutomatically, "updates are automatic by default")
+        #expect(ConfigurationStore.settableKeys.contains("updatesAutomatically"))
+        let summary = try config.store.set(key: "updatesAutomatically", value: "false", author: .commandLine)
+        #expect(summary == "Updates wait to be checked for by hand")
+        #expect(!config.store.snapshot.settings.updatesAutomatically)
+        #expect(throws: ConfigurationError.self) { try config.store.set(key: "updatesAutomatically", value: "sometimes", author: .commandLine) }
+        // Written by hand, it reads back the same.
+        try config.write(#"{"formatVersion": 1, "updatesAutomatically": true}"#, to: "settings.json")
+        #expect(config.store.reload(committingAs: .editedOnDisk).settings.updatesAutomatically)
+    }
+
     @Test func twoRapidEditsBothEndUpInHistory() throws {
         let config = TemporaryConfiguration()
         try config.store.prepare(author: .app)

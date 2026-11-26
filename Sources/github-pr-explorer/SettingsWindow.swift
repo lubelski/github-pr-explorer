@@ -36,10 +36,12 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     }
 }
 
-/// What the Settings window needs besides the configuration: what Debugging reports.
+/// What the Settings window needs besides the configuration: what Debugging reports, and the
+/// updater for General's Updates group.
 struct SettingsContext {
     var build: BuildInfo
     var world: MockWorld
+    var updater: AppUpdater
 }
 
 /// The Settings window's content: a fixed-width sidebar of sections, and the section beside it.
@@ -103,7 +105,7 @@ struct SettingsRootView: View {
 
     @ViewBuilder private var detail: some View {
         switch section {
-        case .general: GeneralSettingsView(configuration: configuration)
+        case .general: GeneralSettingsView(configuration: configuration, context: context)
         case .layouts: LayoutsSettingsView(configuration: configuration)
         case .history: HistorySettingsView(configuration: configuration)
         case .experiments: ExperimentsSettingsView(configuration: configuration)
@@ -126,6 +128,8 @@ struct FileFootnote: View {
 
 struct GeneralSettingsView: View {
     let configuration: ConfigurationModel
+    let context: SettingsContext
+    @Environment(\.isRenderingPreview) private var rendering
 
     var body: some View {
         let settings = configuration.snapshot.settings
@@ -157,6 +161,11 @@ struct GeneralSettingsView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 6)
             }
+            // Only a release build can update itself, so only it shows Updates. A render shows
+            // the group as a release build would.
+            if context.updater.isAvailable || rendering {
+                updatesSection(settings)
+            }
             if let problem = configuration.snapshot.problems.first(where: { $0.file == ConfigurationSettings.fileName }) {
                 Section {
                     ProblemRow(problem: problem, configuration: configuration)
@@ -164,6 +173,28 @@ struct GeneralSettingsView: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private func updatesSection(_ settings: ConfigurationSettings) -> some View {
+        Section {
+            Toggle(isOn: Binding(get: { settings.updatesAutomatically }, set: { configuration.setUpdatesAutomatically($0) })) {
+                Text("Update automatically")
+                Text("Checks about once a day and downloads a newer release. Restart to update shows in the title bar, and the update installs when the app quits.")
+            }
+            LabeledContent {
+                Button(AppUpdater.checkTitle) { context.updater.checkForUpdates() }
+                    .disabled(!context.updater.canCheck && !rendering)
+            } label: {
+                Text("Version")
+                Text(context.build.summary)
+            }
+        } header: {
+            Text("Updates")
+        } footer: {
+            FileFootnote(text: "Update automatically is saved in settings.json as updatesAutomatically. Check for Updates is also in the app menu.")
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 6)
+        }
     }
 }
 

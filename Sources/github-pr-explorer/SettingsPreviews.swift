@@ -89,7 +89,7 @@ enum SettingsPreviews {
     }
 
     static func window(_ model: ConfigurationModel, _ section: SettingsSection) -> AnyView {
-        let context = SettingsContext(build: .preview, world: .standard)
+        let context = SettingsContext(build: .preview, world: .standard, updater: .unavailable())
         return AnyView(SettingsRootView(configuration: model, context: context, renderedSection: section)
             .environment(\.historyNow, MockWorld.now))
     }
@@ -169,7 +169,7 @@ enum SettingsPreviews {
                 let snapshot = store.snapshot
                 let app = model(snapshot)
                 app.apply(snapshot, previous: nil)
-                return AnyView(MainWindowView(model: app)
+                return AnyView(MainWindowView(model: app, updater: .unavailable())
                     .environment(\.hidesBotEventsInActivity, app.hidesBotEventsInActivity))
             },
         ]

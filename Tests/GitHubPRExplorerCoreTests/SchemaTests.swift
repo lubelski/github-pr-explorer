@@ -39,6 +39,7 @@ import Testing
         #expect(properties["appearance"]?["default"] as? String == defaults["appearance"] as? String)
         #expect(properties["defaultLayout"]?["default"] as? String == defaults["defaultLayout"] as? String)
         #expect(properties["hidesBotEventsInActivity"]?["default"] as? Bool == defaults["hidesBotEventsInActivity"] as? Bool)
+        #expect(properties["updatesAutomatically"]?["default"] as? Bool == defaults["updatesAutomatically"] as? Bool)
     }
 
     @Test func layoutSchemaNamesMatchTheTypes() throws {

@@ -28,6 +28,14 @@ These follow from the vision. They are here so a session does not have to derive
 - Native Swift for the current macOS only. Prefer SwiftUI, and use AppKit where SwiftUI cannot do the job. No embedded web page of github.com.
 - Name things in full: `github-pr-explorer`, not an abbreviation.
 
+## Main is test-in-production
+
+Until the app has real users, `main` is test-in-production (owner's direction, 2026-11-25). A merge to `main` that touches a file that ships (`Sources/`, `Resources/`, `Package.swift`, `Package.resolved`, `scripts/bundle.sh`, `scripts/release.sh`) is built, notarized, and released to the owner's Macs within minutes by `mac-app-release-poller`, with no review step between the merge and the release.
+
+- So `main` must always build, pass its tests, and launch. Run `swift build`, `swift test`, `scripts/bundle.sh`, and the renders the change touches before you merge.
+- A change you are not sure of goes behind a switch that is off by default, or waits in its pull request.
+- This posture ends when the app has real users, meaning anyone other than the owner running a release. Revisit this rule then, before the first such user gets a release: a review gate, a beta channel, or both.
+
 ## Working here
 
 - Work in a numbered worktree under `.wt/` (for example `.wt/wt-01`), on a branch. Keep the primary checkout on `main`.
@@ -35,7 +43,8 @@ These follow from the vision. They are here so a session does not have to derive
 - Merge your own pull requests as you work, squashed, once the checks you can run pass. This goes for subagents too. The app has no users until the owner installs it on his Mac (owner's direction, 2026-11-25).
 - Still hold a pull request for the owner when it changes what `VISION.md` says, or when it sets up anything on his Mac.
 - Build against mock data. The core library carries a large, fixed set of placeholder pull requests, and every view must work from it with no network and no sign-in. When a feature needs a case the mock data lacks, add the case in the same pull request (owner's direction, 2026-11-25).
-- When the first code lands, the app follows the scheme the owner's other Mac apps share: a Swift package with a core library, an app target, and tests, `scripts/bundle.sh`, Sparkle updates, and `scripts/release.sh`. `mac-os-agent` is the reference to copy from.
+- The app follows the scheme the owner's other Mac apps share: a Swift package with a core library, an app target, and tests, `scripts/bundle.sh`, Sparkle updates, `scripts/release.sh`, and an icon drawn in Swift. `mac-os-agent` is the reference to copy from. Only `AppUpdater.swift` imports Sparkle.
+- Never cut a release by hand, push a tag, or publish a GitHub Release unless the owner asks. `scripts/release.sh --check` and `--dry-run` publish nothing.
 - Use placeholder names in designs, fixtures, screenshots, and test data: the org `acme`, people such as Ada Park and Sam Rivera. Never real people, repos, or pull requests.
 
 ## Designs

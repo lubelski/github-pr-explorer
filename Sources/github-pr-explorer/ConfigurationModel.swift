@@ -139,6 +139,11 @@ final class ConfigurationModel {
         change { try store.set(key: "hidesBotEventsInActivity", value: String(hides), author: .settingsWindow) }
     }
 
+    func setUpdatesAutomatically(_ on: Bool) {
+        guard on != snapshot.settings.updatesAutomatically else { return }
+        change { try store.set(key: "updatesAutomatically", value: String(on), author: .settingsWindow) }
+    }
+
     func setExperiment(_ experiment: Experiment, on: Bool) {
         change { try store.set(key: "experiments.\(experiment.key)", value: String(on), author: .settingsWindow) }
     }

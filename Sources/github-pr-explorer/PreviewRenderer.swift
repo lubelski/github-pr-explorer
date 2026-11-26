@@ -17,6 +17,8 @@ enum PreviewRenderer {
         let name: String
         var size = CGSize(width: 1560, height: 940)
         var expandsBlocks = false
+        /// An update the title bar shows as waiting. Renders have no feed, so by default none.
+        var pendingUpdate: AppUpdates.Pending?
         let model: () -> AppModel
     }
 
@@ -77,6 +79,10 @@ enum PreviewRenderer {
         return failed ? 1 : 0
     }
 
+    private static func updater(for state: State) -> AppUpdater {
+        state.pendingUpdate.map { AppUpdater.preview(pending: $0) } ?? .unavailable()
+    }
+
     /// Draws a view in a titled window that is never ordered in, title bar included.
     private static func draw(_ view: some View, size: CGSize, appearance: NSAppearance.Name) -> NSBitmapImageRep? {
         let root = view
@@ -110,7 +116,8 @@ enum PreviewRenderer {
         let world = MockWorld.standard
         let window = states().map { state in
             SettingsPreviews.State(name: state.name, size: state.size) {
-                AnyView(MainWindowView(model: state.model()).environment(\.previewExpandsBlocks, state.expandsBlocks))
+                AnyView(MainWindowView(model: state.model(), updater: updater(for: state))
+                    .environment(\.previewExpandsBlocks, state.expandsBlocks))
             }
         }
         let configured = SettingsPreviews.mainWindowStates { snapshot in
@@ -216,6 +223,21 @@ enum PreviewRenderer {
                 for problem in library.problems { print("layout-file-error: \(problem)") }
                 return model(example, library: library)
             },
+        ]
+
+        // The title bar while an update waits (MAC-47): found, then downloaded. Nothing else in
+        // the window changes. A narrow window shows the indicator's symbol only, and the two
+        // window states check the status still clears the centered name.
+        let available = AppUpdates.Pending(stage: .available, version: "0.2.0")
+        let ready = AppUpdates.Pending(stage: .readyToInstall, version: "0.2.0")
+        states += [
+            State(name: "titlebar-update-available", pendingUpdate: available) { model(example) },
+            State(name: "titlebar-update-ready", pendingUpdate: ready) { model(example) },
+            State(name: "window-smallest-update-ready", size: CGSize(width: 900, height: 560),
+                  pendingUpdate: ready) { model(example) },
+            // Just wider than MainWindowView.compactTitleBarWidth, where the full label returns.
+            State(name: "window-narrow-update-ready", size: CGSize(width: 1240, height: 760),
+                  pendingUpdate: ready) { model(example) },
         ]
 
         // The diff pane over the page (MAC-53, Figma row 8).

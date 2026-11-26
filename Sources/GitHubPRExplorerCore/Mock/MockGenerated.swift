@@ -128,7 +128,8 @@ enum MockGenerated {
                                                      MockFileSpec(path: "package-lock.json", additions: 9, deletions: 9)]
         ))
 
-        // A body with a table, an image, a task list, a collapsed section and a code block.
+        // A body with every kind of block the Description draws: headings, paragraphs, a table,
+        // an image, task, numbered and nested lists, a collapsed section, code, a quote, a rule and a link.
         specs.append(MockPullRequestSpec(
             repository: web, number: 0, title: "Make the reports table header sticky", author: MockCast.samRivera,
             scenario: .waitingOnReviewers, body: richBody, createdAt: daysAgo(4.1), area: MockVocabulary.web.areas[2]
@@ -311,6 +312,21 @@ enum MockGenerated {
         ```tsx
         <ReportsTable columns={columns} rows={rows} stickyHeader />
         ```
+
+        ### How to check it
+
+        1. Open **Reports** on staging and pick a range with more than *one page* of rows.
+        2. Scroll the table and watch the header.
+          - It should stay put, with the column menu still reachable.
+          - The shadow under it should appear once the first row scrolls away.
+        3. Read the notes in [the design review](https://design.acme.example/reviews/reports-header).
+
+        > Ada Park asked for the shadow in the design review. It is the same one the invoice table
+        > uses, so the two tables match.
+
+        ---
+
+        The totals row is a follow-up.
         """
 
     // MARK: Helpers

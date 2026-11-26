@@ -188,6 +188,13 @@ import Testing
         #expect(blocks.contains(.summary("Why not a CSS-only fix")))
         #expect(blocks.contains(.code(language: "tsx", text: "<ReportsTable columns={columns} rows={rows} stickyHeader />")))
         #expect(!blocks.contains { if case .paragraph(let text) = $0 { text.contains("<details>") } else { false } })
+        // Every kind of block, so the renders and the text selection see each one.
+        #expect(blocks.contains(.heading(level: 3, text: "How to check it")))
+        #expect(blocks.contains(.listItem(text: "Scroll the table and watch the header.", checked: nil, ordinal: 2, depth: 0)))
+        #expect(blocks.contains(.listItem(text: "It should stay put, with the column menu still reachable.", checked: nil, ordinal: nil, depth: 1)))
+        #expect(blocks.contains { if case .quote(let text) = $0 { text.hasPrefix("Ada Park asked") } else { false } })
+        #expect(blocks.contains(.rule))
+        #expect(blocks.last == .paragraph("The totals row is a follow-up."))
     }
 
     @Test func numberedItemsQuotesAndEmpty() {

@@ -13,6 +13,28 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
 - Build on mock data first
   - The owner asked on 2026-11-25 for lots of mock data, to help work on the app and to get building started before sync exists.
   - The mock data is the same placeholder world the Figma rows use: the org `acme`, its repos and people, and pull request `acme/api #4826` as the worked example.
+- The model is plain values in one core library
+  - `GitHubPRExplorerCore` holds the models, the logic derived from them, the index protocol, and the mock world. It uses Foundation only and has no network code.
+  - Every type is a `Codable`, `Sendable`, `Hashable` value. A `PullRequest` holds every section in one value: metadata and merge state, reviews and code owners, checks, files and commits, threads, and conversation comments and the timeline.
+  - Each of those six sections carries its own `SectionProvenance`: a source (GraphQL API, REST API, local clone, push, web page, mock) and when it was fetched. Code owners count as reviews, commits as files, and conversation comments as timeline.
+  - A file keeps its patch as GitHub's per-file text, hunks only. The parsed form, with old and new line numbers, is worked out on demand by `PatchParser` and is not stored.
+  - A review request is pending by definition, because GitHub drops it once that reviewer reviews.
+  - A thread on a removed line points at the old file (`side: left`), so the quoted line can always be found in the patch.
+  - The index protocol is small and synchronous: all pull requests, one by id or by reference, the viewer, and a word search over title, number, author, repository and file paths. Each word must appear somewhere, ignoring case and accents. It is not the filter language.
+- The mock world is fixed and deterministic
+  - `MockWorld.standard` is seen from a fixed `now`, 2026-11-25T18:00:00Z. Two builds encode to byte-identical JSON, and a test checks it.
+  - Randomness comes from a SplitMix64 generator written in the package, seeded per pull request from its reference, so adding one pull request never changes another. The standard library's random functions are never used, since their algorithms may change between Swift releases.
+  - It holds the org `acme`, its repos `api`, `web`, `infra` and `docs`, 8 people who do most of the work, 22 who review now and then (so one pull request can ask 30 reviewers), three bots, and two agents with obviously placeholder logins (`example-agent-one`, `example-agent-two`). The viewer is Robin Quill (`robin-quill`), on `@acme/security`. The second team is `@acme/web-platform`.
+  - It has exactly 218 open, 60 merged and 20 closed pull requests. `acme/api #4826` is written by hand to match the designs, and so are the 14 others the designs name. The rest are built from parts, with every status state in every repository, and the awkward cases views need: a 120-file pull request with a 5,000-line patch, a 287-event timeline, ci-bot's expensive-CI checkbox, empty and rich bodies, a very long title, non-ASCII text, 30 reviewers and none, 40 checks and none, renamed, removed, added and binary files, and outdated and resolved threads.
+  - Its provenance uses the sources a real sync would use, with varied ages and some stale, so freshness views have something to show. `mock` is kept for data made up by a test or a preview.
+  - When a view needs a case the world lacks, add it to the world in the same pull request.
+- The status sentence has one precedence
+  - A pull request's state is a symbol and one plain sentence, with every reason found. The first match wins: merged `✓`, closed `⊘`, draft `○`, in the merge queue `●`, blocked `✕` (merge conflicts or a failed required check, listing changes requested and unresolved threads too), changes requested `✕`, CI running `●`, checks queued `●`, a check that is not required failed `◐`, threads unresolved `◐`, waiting on reviewers or needs a review `◐`, behind the base branch `◐`, checking for conflicts `◐`, ready to merge `✓`.
+  - Outdated threads that are not resolved count as unresolved, as GitHub's conversation rule counts them.
+  - When a review is asked of the viewer or one of the viewer's teams, the sentence ends "Review requested from you." The comment on `StatusSentence` is the full rule.
+- The command line tool starts with the mock world
+  - `github-pr-explorer-ctl` lists pull requests, shows one, and exports the mock world. `list` prints tab-separated lines so agents can split them. `show --json` prints the same JSON the export writes.
+  - The export writes `world.json` and one file per pull request under `pull-requests/`, named like `acme-api-4826.json`.
 - Pull requests are merged by whoever wrote them
   - The owner said on 2026-11-25 that sessions and their subagents may merge as they work, because the app has no users until he installs it.
 - The vision and the plan are separate files

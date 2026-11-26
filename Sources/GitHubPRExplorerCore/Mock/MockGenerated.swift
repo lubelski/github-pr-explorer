@@ -79,7 +79,7 @@ enum MockGenerated {
                           "AuditEvent", "ApiKey", "Delivery", "Report", "Export", "Address", "TaxRate", "Seat", "Role", "Token"]
         let modelSuffixes = ["", "List", "Request", "Response", "Event", "Status"]
         var largeFiles = [
-            MockFileSpec(path: "openapi/acme-api.yaml", additions: 3020, deletions: 1980),
+            MockFileSpec(path: "openapi/acme-api.yaml", additions: 2380, deletions: 1520),
             MockFileSpec(path: "clients/typescript/src/index.ts", additions: 118, deletions: 40),
         ]
         for name in modelNames {

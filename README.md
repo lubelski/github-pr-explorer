@@ -2,7 +2,7 @@
 
 A native macOS app for finding, reading, and deciding on GitHub pull requests without the web page.
 
-Nothing is built yet. This repository holds the vision, the plan, and the research.
+The core library and a large set of mock data are built. There is no app yet. This repository also holds the vision, the plan, and the research.
 
 ## The idea
 
@@ -10,6 +10,27 @@ Nothing is built yet. This repository holds the vision, the plan, and the resear
 - **A sync layer.** It fills the index from GitHub by whatever source is fastest for each fact, and records how fresh each fact is.
 - **A page made of blocks.** The description, checks, reviewers, files, diff, and threads are each a block. Press Edit Layout and every block can be dragged to a new place or a new tab.
 - **Rules that pick the layout.** A team can give one repo one page and another repo a different one, down to who is reviewing or which file tree was touched. A rule is a filter, the same kind search uses.
+
+## Running it
+
+Build and test the package. It needs the current Xcode and macOS.
+
+```sh
+swift build
+swift test
+```
+
+`github-pr-explorer-ctl` reads the built-in mock world. List pull requests, show one, or export the world as JSON:
+
+```sh
+swift run github-pr-explorer-ctl pull-requests list --repo acme/api --state open
+swift run github-pr-explorer-ctl pull-requests list --search "session refresh"
+swift run github-pr-explorer-ctl pull-request show acme/api#4826
+swift run github-pr-explorer-ctl pull-request show acme/api#4826 --json
+swift run github-pr-explorer-ctl mock-data export /tmp/github-pr-explorer-mock
+```
+
+Each command takes `--help`.
 
 ## Where things are
 
@@ -21,6 +42,9 @@ Nothing is built yet. This repository holds the vision, the plan, and the resear
 | [planning/ideas.md](planning/ideas.md) | Ideas the owner has raised. None is a plan. |
 | [planning/research/](planning/research/) | What was learned about GitHub's data sources and about existing tools. |
 | [AGENTS.md](AGENTS.md) | How to work in this repository. |
+| [Sources/GitHubPRExplorerCore/](Sources/GitHubPRExplorerCore/) | The models, the status sentence, the index protocol, and the mock world in `Mock/`. |
+| [Sources/github-pr-explorer-ctl/](Sources/github-pr-explorer-ctl/) | The command line tool. |
+| [Tests/GitHubPRExplorerCoreTests/](Tests/GitHubPRExplorerCoreTests/) | Tests for both, with Swift Testing. |
 
 The designs are in Figma: https://www.figma.com/design/XslUM40a0h5IXEs7tXtAqZ
 

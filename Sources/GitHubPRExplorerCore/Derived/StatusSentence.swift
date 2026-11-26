@@ -15,7 +15,8 @@ import Foundation
 /// 5. **Changes requested** `✕`.
 /// 6. **CI running** `●`, timed from the earliest running check: "CI running 12 min".
 /// 7. **Checks queued** `●`, when checks wait and none runs.
-/// 8. **A check that is not required failed** `◐`.
+/// 8. **A check that is not required failed** `◐`: "lint failed, not required". The check's
+///    name is kept as written, so this sentence can start in lower case.
 /// 9. **Threads unresolved** `◐`: "2 threads unresolved".
 /// 10. **Waiting on reviewers** `◐`, counting pending requests, a team as one: "Waiting on 1 reviewer".
 ///     **Needs a review** `◐` when GitHub wants a review and none is requested.
@@ -110,7 +111,7 @@ public struct StatusSentence: Codable, Sendable, Hashable {
         } else if facts.queuedCount > 0 {
             (state, symbol, headline) = (.checksQueued, .filledCircle, "Checks queued")
         } else if !facts.failedOptional.isEmpty {
-            (state, symbol, headline) = (.optionalChecksFailed, .halfCircle, facts.failedOptionalReason.capitalizedFirst)
+            (state, symbol, headline) = (.optionalChecksFailed, .halfCircle, facts.failedOptionalReason)
         } else if facts.unresolvedCount > 0 {
             (state, symbol, headline) = (.threadsUnresolved, .halfCircle, facts.unresolvedReason.capitalizedFirst)
         } else if facts.pendingReviewerCount > 0 {

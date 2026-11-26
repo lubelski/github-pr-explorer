@@ -23,7 +23,7 @@ enum PreviewRenderer {
     static func run(arguments: [String]) -> Int32 {
         guard let index = arguments.firstIndex(of: argument) else { return 2 }
         if arguments.contains("--list") {
-            for state in states() { print(state.name) }
+            for state in drawables() { print(state.name) }
             return 0
         }
         guard index + 1 < arguments.count else {
@@ -37,7 +37,9 @@ enum PreviewRenderer {
             appearances = appearances.filter { wanted.contains($0.0) }
         }
         let named = Set(arguments.dropFirst(index + 2).filter { !$0.hasPrefix("--") && !$0.contains(",") && $0 != "light" && $0 != "dark" })
-        let chosen = states().filter { named.isEmpty || named.contains($0.name) }
+        let chosen = drawables().filter { named.isEmpty || named.contains($0.name) }
+        // The Settings states fill temporary configuration folders, removed when done.
+        defer { SettingsPreviews.removeFolders() }
         let unknown = named.subtracting(chosen.map(\.name))
         if !unknown.isEmpty {
             FileHandle.standardError.write(Data("Unknown states: \(unknown.sorted().joined(separator: ", ")). --list lists them.\n".utf8))
@@ -56,8 +58,7 @@ enum PreviewRenderer {
             for (look, appearance) in appearances {
                 let url = folder.appending(path: "\(state.name)-\(look).png")
                 let started = Date()
-                guard let image = draw(MainWindowView(model: state.model()).environment(\.previewExpandsBlocks, state.expandsBlocks),
-                                        size: state.size, appearance: appearance),
+                guard let image = draw(state.view(), size: state.size, appearance: appearance),
                       let png = image.representation(using: .png, properties: [:])
                 else {
                     FileHandle.standardError.write(Data("Could not render \(state.name) in \(look)\n".utf8))
@@ -102,6 +103,20 @@ enum PreviewRenderer {
         frame.cacheDisplay(in: bounds, to: rep)
         window.contentView = nil
         return rep
+    }
+
+    /// Every state the renderer can draw: the main window's, then the Settings window's.
+    static func drawables() -> [SettingsPreviews.State] {
+        let world = MockWorld.standard
+        let window = states().map { state in
+            SettingsPreviews.State(name: state.name, size: state.size) {
+                AnyView(MainWindowView(model: state.model()).environment(\.previewExpandsBlocks, state.expandsBlocks))
+            }
+        }
+        let configured = SettingsPreviews.mainWindowStates { snapshot in
+            AppModel(index: world.index, now: world.now, library: snapshot.library, selection: MockWorld.workedExample)
+        }
+        return window + configured + SettingsPreviews.states()
     }
 
     // MARK: States

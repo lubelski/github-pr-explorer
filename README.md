@@ -49,6 +49,52 @@ scripts/render-previews.sh page-4826-decision-first   # one state
 scripts/render-previews.sh --pr 3 page-4826-decision-first   # attach to pull request 3
 ```
 
+## Configuration
+
+Everything that can be configured is a plain file in one folder, so you, an editor, or a coding agent can change it. The app's Settings window (Command-comma) writes the same files. The app watches the folder and applies a change as soon as a file is saved.
+
+The folder is:
+
+```
+~/Library/Application Support/github-pr-explorer/config/
+```
+
+The app creates it on first run. It holds:
+
+| File | What it holds |
+|---|---|
+| `settings.json` | `formatVersion` (always `1`), `appearance` (`system`, `light`, `dark`), `defaultLayout` (a layout id), `hidesBotEventsInActivity` (`true` or `false`), and `experiments` (names to `true`; there are none right now, so `{}`). Only `formatVersion` is required: a key left out takes its default. |
+| `layouts/<id>.json` | One page layout per file, named after its id. The format is the built-in layouts' format. A file with a built-in layout's id (`decision-first`, `tabbed`) replaces it. Copies of the built-in layouts are not written until you ask for one. |
+| `README.md` | The same explanation, for whoever opens the folder. |
+
+The JSON Schemas are [schemas/settings.schema.json](schemas/settings.schema.json) and [schemas/page-layout.schema.json](schemas/page-layout.schema.json). Every property is described there.
+
+A file that does not validate is never applied. The app keeps using the last version of it that worked and shows the problem, with the file, where in it, and what is wrong, in Settings and in `config validate`. A key the format does not have counts as a problem, so a misspelled setting is reported instead of ignored.
+
+### History
+
+The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `edited on disk` (an agent, an editor, or you), `ctl`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
+
+### From the command line
+
+Every command takes `--config <folder>` to use another folder, which is how the tests run.
+
+```sh
+github-pr-explorer-ctl config path                      # where the folder is
+github-pr-explorer-ctl config validate                  # every file; exits 1 when any has a problem
+github-pr-explorer-ctl config show                      # settings, layouts, problems (--json for JSON)
+github-pr-explorer-ctl config set defaultLayout tabbed  # also appearance, hidesBotEventsInActivity
+github-pr-explorer-ctl config history --limit 10        # id, time (UTC), who, what (--json for JSON)
+github-pr-explorer-ctl config diff 1a2b3c4              # what a version changed
+github-pr-explorer-ctl config restore 1a2b3c4           # the whole folder as it was then
+github-pr-explorer-ctl config restore 1a2b3c4 settings.json   # one file
+github-pr-explorer-ctl layouts list
+github-pr-explorer-ctl layouts show tabbed --json
+github-pr-explorer-ctl layouts duplicate tabbed my-layout --name "My layout"
+```
+
+To make a new layout, duplicate one, edit `layouts/my-layout.json`, run `config validate`, then `config set defaultLayout my-layout`. From a checkout, put `swift run` in front of each command.
+
 ## Where things are
 
 | File | What it holds |
@@ -61,8 +107,10 @@ scripts/render-previews.sh --pr 3 page-4826-decision-first   # attach to pull re
 | [AGENTS.md](AGENTS.md) | How to work in this repository. |
 | [Sources/GitHubPRExplorerCore/](Sources/GitHubPRExplorerCore/) | The models, the status sentence, the index protocol, and the mock world in `Mock/`. |
 | [Sources/GitHubPRExplorerCore/Layout/](Sources/GitHubPRExplorerCore/Layout/) | Page layouts as JSON documents, and the two built-in layouts. |
+| [Sources/GitHubPRExplorerCore/Configuration/](Sources/GitHubPRExplorerCore/Configuration/) | The configuration folder: settings, validation, the folder watcher, and history. |
+| [schemas/](schemas/) | The JSON Schemas for `settings.json` and layout files. |
 | [Sources/GitHubPRExplorerCore/Blocks/](Sources/GitHubPRExplorerCore/Blocks/) | What each block shows, worked out without SwiftUI. |
-| [Sources/github-pr-explorer/](Sources/github-pr-explorer/) | The app: the window, one view per block, and the offscreen renders. |
+| [Sources/github-pr-explorer/](Sources/github-pr-explorer/) | The app: the window, one view per block, the Settings window, and the offscreen renders. |
 | [Sources/github-pr-explorer-ctl/](Sources/github-pr-explorer-ctl/) | The command line tool. |
 | [scripts/](scripts/) | `bundle.sh` and `render-previews.sh`. |
 | [Tests/GitHubPRExplorerCoreTests/](Tests/GitHubPRExplorerCoreTests/) | Tests for both, with Swift Testing. |

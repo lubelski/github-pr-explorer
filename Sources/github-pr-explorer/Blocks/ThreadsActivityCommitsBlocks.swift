@@ -69,6 +69,8 @@ struct ActivityBlock: View {
     @State private var showsBots = false
     @State private var showsAll = false
     @Environment(\.previewExpandsBlocks) private var previewExpands
+    /// `hidesBotEventsInActivity` in `settings.json`.
+    @Environment(\.hidesBotEventsInActivity) private var hidesBots
 
     var body: some View {
         if pullRequest.timeline.isEmpty {
@@ -88,7 +90,12 @@ struct ActivityBlock: View {
                 }
             }
         } else {
-            large.onAppear { if previewExpands { showsAll = true; showsBots = true } }
+            large
+                .onAppear {
+                    showsBots = !hidesBots
+                    if previewExpands { showsAll = true; showsBots = true }
+                }
+                .onChange(of: hidesBots) { _, hides in showsBots = !hides }
         }
     }
 

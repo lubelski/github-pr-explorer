@@ -1,0 +1,93 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lubelski/github-pr-explorer/schemas/page-layout.schema.json",
+  "title": "github-pr-explorer page layout",
+  "description": "One page layout: layouts/<id>.json in the configuration folder (~/Library/Application Support/github-pr-explorer/config). A layout arranges a pull request's blocks in named tabs, each split into columns. The file must be named after the layout's id. A file whose id is a built-in layout's (decision-first, tabbed) replaces that layout. A file that does not validate is not applied, and the app keeps using the last version that worked.",
+  "type": "object",
+  "required": ["formatVersion", "id", "name", "tabs"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "Optional. A link to this schema, for editors. The app ignores it.",
+      "type": "string"
+    },
+    "formatVersion": {
+      "description": "The version of this file's format. This app reads version 1 only.",
+      "type": "integer",
+      "enum": [1]
+    },
+    "id": {
+      "description": "Stable and file-name safe: lowercase letters, digits and hyphens, starting with a letter or digit, such as my-layout. The file is layouts/<id>.json, and settings.json's defaultLayout names a layout by this.",
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "maxLength": 100
+    },
+    "name": {
+      "description": "What a person sees in the layout menu and in Settings, such as \"Decision first\". Not empty.",
+      "type": "string",
+      "minLength": 1
+    },
+    "tabs": {
+      "description": "The page's tabs, in order. At least one. A layout with one tab shows no tab strip.",
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/tab" }
+    }
+  },
+  "$defs": {
+    "tab": {
+      "description": "One tab of the page.",
+      "type": "object",
+      "required": ["name", "columns"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "description": "The tab's title in the tab strip. Not empty.",
+          "type": "string",
+          "minLength": 1
+        },
+        "columns": {
+          "description": "The tab's columns, left to right. May be empty, for a tab with no blocks yet.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/column" }
+        }
+      }
+    },
+    "column": {
+      "description": "One column of a tab.",
+      "type": "object",
+      "required": ["width", "blocks"],
+      "additionalProperties": false,
+      "properties": {
+        "width": {
+          "description": "The column's share of the tab's width, relative to the other columns: widths 2 and 1 give two thirds and one third. A number above zero.",
+          "type": "number",
+          "exclusiveMinimum": 0
+        },
+        "blocks": {
+          "description": "The column's blocks, top to bottom. May be empty.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/block" }
+        }
+      }
+    },
+    "block": {
+      "description": "One block placed on the page.",
+      "type": "object",
+      "required": ["kind", "size"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "description": "Which block: description, checks, reviewers, ownersTouched (code owners whose files the pull request changes), files, threads (review threads), activity (the timeline), commits, or labelsAndMetadata.",
+          "type": "string",
+          "enum": ["description", "checks", "reviewers", "ownersTouched", "files", "threads", "activity", "commits", "labelsAndMetadata"]
+        },
+        "size": {
+          "description": "How much the block shows: small is a line or two, large is its full content. Every block works at both sizes.",
+          "type": "string",
+          "enum": ["small", "large"]
+        }
+      }
+    }
+  }
+}

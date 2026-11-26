@@ -429,10 +429,9 @@ public final class ConfigurationStore {
         } catch {
             throw ConfigurationError(error.message)
         }
-        let when = target.date.formatted(.iso8601.year().month().day().time(includingFractionalSeconds: false).dateTimeSeparator(.space))
         let what = file ?? "the configuration"
         let before = try versions(limit: 1).first?.id
-        reload(committingAs: author, summary: "Restored \(what) to version \(target.shortID) from \(when) UTC")
+        reload(committingAs: author, summary: "Restored \(what) to version \(target.shortID)")
         if let historyProblem { throw ConfigurationError("The files were restored, but the restore was not recorded: \(historyProblem)") }
         let latest = try versions(limit: 1).first
         return latest?.id == before ? nil : latest

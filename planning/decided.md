@@ -39,11 +39,11 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
   - `PageLayout` has a format version, an id, a name, and tabs in order. A tab has a name and columns in order. A column has a relative width and blocks in order. A block placement is a block kind and a size, small or large. It is `Codable` and written with sorted keys, so the same layout is the same bytes.
   - The block kinds are description, checks, reviewers, owners touched, files, threads, activity, commits, and labels and metadata. An unknown kind fails to decode. A tab with no blocks is allowed.
   - A file that does not decode is reported with its file name, where in the file, and what is wrong, such as `decision-first.json, at tabs[0].columns[0].blocks[0].kind: unknown block kind "summary"`. The app shows the problem in the page footer and keeps going. When "Decision first" itself cannot be read, a copy compiled into the app is used, and a test keeps the two equal.
-  - Layout rules, a configuration folder, and Edit Layout come later and build on this shape.
+  - Layout rules and Edit Layout come later and build on this shape. The configuration folder reads layout files through the same decoding.
 - Two layouts ship
   - "Decision first", after Figma row 1: one tab, two columns at widths 1.85 and 1. Left: Description, Threads, Files. Right: Checks, Reviewers, Owners touched, Activity.
   - "Tabbed", after Figma row 2: Overview (Description, Reviewers, Owners touched, Activity), Files (Files, Commits), Checks, Threads.
-  - Both are JSON resource files in the core library, read through the same decoding a person's own file goes through. The footer's layout menu switches between them.
+  - Both are JSON resource files in the core library, read through the same decoding a person's own file goes through. The window's layout menu switches between them and the person's own layouts.
 - The header is fixed above the tabs, for now
   - The repository and number, title, status sentence, and action buttons sit above the tabs and are not a block. This is temporary. `VISION.md` says no block has a fixed place, so the header becomes a block, or blocks, when Edit Layout arrives.
   - The action buttons are disabled with the tooltip "Not connected to GitHub yet". The line under them says why Merge is unavailable when it is.
@@ -53,6 +53,41 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
   - `github-pr-explorer --render-previews <folder> [state ...]` builds the real window with the mock world's index and a model set to each named state, in a titled window that is never put on screen, and writes a PNG in light and in dark. It sets the activation policy to prohibited, so nothing appears and nothing takes focus. `scripts/render-previews.sh` runs it, stamped and signed as the bundle is, and can attach the PNGs to a pull request.
   - The states cover #4826 in each layout and tab, the awkward mock cases, the list with a search, a bad layout file, and every block at both sizes, full and empty. The empty one is made up in the renderer with provenance `mock`.
   - Offscreen, a list's selected row does not draw, so the list draws it by hand while rendering.
+- Configuration is a folder of plain files
+  - Taken as a default on 2026-11-25, from the recommendations to open questions 11 and 12, pending the owner's answer. Built in MAC-56.
+  - The folder is `~/Library/Application Support/github-pr-explorer/config/`. The app creates it on first run with `settings.json`, an empty `layouts/`, a `README.md` that explains each file, and a `.gitignore` for Finder and editor litter. Copies of the built-in layouts are not written: Duplicate to Edit makes one when asked.
+  - `ConfigurationStore` in the core library is the only way in. The app, Settings and `ctl` all use it. Tests and renders pass a temporary folder and never touch the real one.
+  - Nothing configurable lives only in the window or in preferences. The Settings window's selected section and its frame are window state, kept by the system as in the owner's other apps.
+- The files are JSON, one file per thing, each with a format version and a schema
+  - `settings.json` holds the general settings: `formatVersion`, `appearance` (system, light, dark), `defaultLayout`, `hidesBotEventsInActivity`, and `experiments`. Only `formatVersion` is required, and a key left out takes its default, so a person or an agent can write just the one setting they mean.
+  - `layouts/<id>.json` holds one layout in the existing `PageLayout` format. The file is named after the layout's id, and an id is lowercase letters, digits and hyphens. A file with a built-in layout's id replaces it in place. The person's own layouts follow the built-in ones, by name.
+  - A key the format does not have makes a file invalid, in settings and in layouts, so a misspelled key is reported instead of silently ignored. `$schema` is allowed at the top of a file for editors.
+  - The schemas are hand-written in `schemas/`, with a description on every property. A test checks that their property names and enums match the Swift types, that the built-in layouts and the default settings pass, and that files the app refuses the schema refuses too. It uses a small checker for the keywords the schemas use, not a full JSON Schema validator.
+- A file that does not validate is never applied
+  - The last version of that file that worked stays in use: the one this run last read, or else the one in the last recorded version, so `ctl` and a relaunched app fall back the same way. A file wrong from the start is left out.
+  - Each problem names the file, where in it, what is wrong, and whether the last good version is in use. Settings shows it in the section the file belongs to, the page footer counts layout problems, and `config validate` lists them and exits 1.
+  - A default layout no layout has is reported but the file is still applied, with Decision first used instead.
+  - Settings refuses to change `settings.json` while it has a problem, so a hand edit being fixed is never overwritten.
+- Every valid change to the configuration is kept, whoever made it
+  - The folder is a local git repository with no remote. After every valid change the store commits it, leaving out any file that did not validate. The message's first line says what changed and a `Changed-By:` line says who: `Settings window`, `edited on disk`, `ctl`, or `app`.
+  - Git runs as `/usr/bin/git` with an identity passed on each command, the person's global and system git configuration switched off, and no hooks, so history neither depends on nor changes their git setup. Before running the macOS git stub, the store checks the developer tools are installed, so it never puts the install dialog in front of the person.
+  - History never blocks a save. When git is missing or fails, the file is written, the problem is reported in Settings, History and Debugging, and the app carries on.
+  - Restoring the folder or one file to a version writes the files as they were and records that as a new version, so the versions after it are kept. Changes on disk not yet recorded are recorded first.
+- The app reloads the folder when a file changes
+  - A folder watcher, after `mac-os-agent`'s, watches the folder, `layouts/`, and each file in them, so it sees a file replaced by an editor's save and a file written in place by a shell. Changes are gathered for 250 ms and then read once. The Settings window reads the folder again when it comes forward, in case an event was missed.
+  - Every change reaches the open window at once: a new default layout switches it, the appearance applies to every window, and the Activity setting applies to blocks as they appear.
+  - The layout menu in the window changes only the open window. Settings, a hand edit or `config set` holds the default, and the next change to the default wins.
+- `ctl` reads and changes the configuration
+  - `config path`, `validate`, `show [--json]`, `set <key> <value>`, `history [--limit N] [--json]`, `diff <version>`, `restore <version> [file]`, and `layouts list`, `show <id> [--json]`, `duplicate <id> <new-id> [--name]`. Each takes `--config <folder>`.
+  - Commands that only look never create the folder or record a version. Commands that change something create the folder if needed and record their change as `ctl`.
+  - MCP comes later. The agent rule in `AGENTS.md` still asks for it, so a later pull request adds the same operations over MCP.
+- The Settings window has five sections
+  - A SwiftUI `Settings` scene, so it opens with Command-comma and from the app menu, with the standard title bar. A fixed 200-point sidebar in a plain row, as `mac-os-agent` and `meeting-agenda-clock` have it, at 900 by 620 and resizable down to 760 by 480.
+  - General: appearance, the default layout, and whether bot events start hidden in Activity. These are the settings that exist today. Nothing was added to fill the section.
+  - Layouts: where the folder is, that a coding agent can edit it, and a button that copies its path. Each layout with a drawing of its first tab's columns and blocks, a strip for its tabs, its name, where it comes from, and which is the default. Set as Default, Duplicate to Edit, and for the person's own files Show in Finder and Delete. Files that failed are listed above with their problem.
+  - History: the versions newest first, with what changed, who, and when. Selecting one shows its diff. Restore This Version and Restore One File ask first and say plainly that restoring adds a version and loses nothing.
+  - Experiments: an `Experiment` enum in the core library, each case a switch that is off by default, saved in `settings.json`. It is empty: the sliding diff pane (MAC-53) had not landed on main when this was built. While it is empty the compiler warns that code using an experiment can never run, and the warnings go with the first case.
+  - Debugging, always last, read-only: version, build and commit, what the mock world holds, the folder, whether it is watched, whether history works, the layouts, problems since launch, and Copy Diagnostics with the same as plain text.
 - Pull requests are merged by whoever wrote them
   - The owner said on 2026-11-25 that sessions and their subagents may merge as they work, because the app has no users until he installs it.
 - The vision and the plan are separate files

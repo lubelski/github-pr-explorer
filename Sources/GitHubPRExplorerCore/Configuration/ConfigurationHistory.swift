@@ -272,8 +272,6 @@ public final class ConfigurationHistory {
         }
     }
 
-    private final class Box: @unchecked Sendable { var data = Data() }
-
     static func run(_ path: String, _ arguments: [String], in folder: URL, environment: [String: String]) throws -> (output: String, error: String, status: Int32) {
         let process = Process()
         process.executableURL = URL(filePath: path)
@@ -285,23 +283,26 @@ public final class ConfigurationHistory {
         for key in ["DEVELOPER_DIR", "TMPDIR", "HOME"] { if let value = outside[key] { merged[key] = value } }
         process.environment = merged
         if FileManager.default.fileExists(atPath: folder.path) { process.currentDirectoryURL = folder }
+        // Errors go to a temporary file and the output to a pipe read here, so a large diff
+        // cannot fill a pipe and stall git, and nothing waits on another thread.
+        let errorFile = FileManager.default.temporaryDirectory.appending(path: "github-pr-explorer-git-\(UUID().uuidString).txt")
+        FileManager.default.createFile(atPath: errorFile.path, contents: nil)
+        defer { try? FileManager.default.removeItem(at: errorFile) }
+        let errorHandle = try FileHandle(forWritingTo: errorFile)
+        defer { try? errorHandle.close() }
         let output = Pipe()
-        let error = Pipe()
         process.standardOutput = output
-        process.standardError = error
+        process.standardError = errorHandle
         process.standardInput = FileHandle.nullDevice
+        // `waitUntilExit` runs the current run loop while it waits, which lets AppKit handle
+        // events and draw in the middle of whatever called this, such as a view's body. A
+        // semaphore waits without doing that.
+        let exited = DispatchSemaphore(value: 0)
+        process.terminationHandler = { _ in exited.signal() }
         try process.run()
-        // Read both pipes at once, so a large diff cannot fill one and stall the process.
-        let errorBox = Box()
-        let group = DispatchGroup()
-        group.enter()
-        DispatchQueue.global().async {
-            errorBox.data = error.fileHandleForReading.readDataToEndOfFile()
-            group.leave()
-        }
         let outputData = output.fileHandleForReading.readDataToEndOfFile()
-        group.wait()
-        process.waitUntilExit()
-        return (String(decoding: outputData, as: UTF8.self), String(decoding: errorBox.data, as: UTF8.self), process.terminationStatus)
+        exited.wait()
+        let errorData = (try? Data(contentsOf: errorFile)) ?? Data()
+        return (String(decoding: outputData, as: UTF8.self), String(decoding: errorData, as: UTF8.self), process.terminationStatus)
     }
 }

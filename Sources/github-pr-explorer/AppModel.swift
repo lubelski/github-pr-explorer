@@ -13,7 +13,10 @@ final class AppModel {
     /// The clock every age and running time is measured from. The mock world is seen from a
     /// fixed moment, so the app uses that moment and renders stay the same from run to run.
     let now: Date
-    let library: LayoutLibrary
+    /// The layouts the layout menu offers: the built-in ones and the configuration folder's.
+    var library: LayoutLibrary
+    /// Whether Activity starts with bot events folded away, from `settings.json`.
+    var hidesBotEventsInActivity = true
 
     var searchText = ""
     var selection: PullRequest.ID?
@@ -48,6 +51,18 @@ final class AppModel {
     var layout: PageLayout { library.layout(id: layoutID) }
 
     var currentTabIndex: Int { min(max(0, selectedTab), max(0, layout.tabs.count - 1)) }
+
+    /// Takes in a change to the configuration. When the default layout changes, by Settings,
+    /// by a hand edit of `settings.json` or by `ctl config set`, the open window switches to it.
+    /// The layout menu changes the open window only, and the next change to the default wins.
+    func apply(_ configuration: ConfigurationSnapshot, previous: ConfigurationSnapshot?) {
+        library = configuration.library
+        hidesBotEventsInActivity = configuration.settings.hidesBotEventsInActivity
+        let defaultID = configuration.defaultLayout.id
+        if previous == nil || previous?.defaultLayout.id != defaultID {
+            layoutID = defaultID
+        }
+    }
 
     func status(for pr: PullRequest) -> StatusSentence {
         if let known = statusByID[pr.id] { return known }

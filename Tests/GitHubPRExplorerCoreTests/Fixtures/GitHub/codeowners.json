@@ -1,0 +1,10 @@
+{
+  "data": {
+    "repository": {
+      "github": { "text": "# Owners\n*       @acme/web-platform\n/auth/  @acme/security @robin-quill   # sign-in\n" },
+      "root": null,
+      "docs": null
+    },
+    "rateLimit": { "cost": 1, "remaining": 4982, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

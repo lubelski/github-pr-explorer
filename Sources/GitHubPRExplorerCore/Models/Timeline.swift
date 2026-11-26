@@ -90,6 +90,12 @@ public struct SectionProvenance: Codable, Sendable, Hashable {
         self.source = source
         self.fetchedAt = fetchedAt
     }
+
+    /// A section the sync has not fetched yet, such as the files of a pull request seen only
+    /// in the list pass. Its date is the distant past, so it never passes for fresh.
+    public static let notFetched = SectionProvenance(source: .graphQLAPI, fetchedAt: .distantPast)
+
+    public var isFetched: Bool { fetchedAt > .distantPast }
 }
 
 /// Where each section of a pull request came from and when it was fetched. `VISION.md`

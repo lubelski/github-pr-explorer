@@ -91,6 +91,7 @@ struct DiagnosticsReport {
                 Row(label: "Teams", value: "\(world.teams.count)"),
                 Row(label: "Seen from", value: world.now.formatted(.iso8601)),
             ]),
+            Self.syncGroup(context.sync),
             Group(title: "Configuration", rows: [
                 Row(label: "Folder", value: configuration.displayPath),
                 Row(label: "Watching for changes", value: configuration.isWatching ? "Yes" : "No"),
@@ -101,6 +102,32 @@ struct DiagnosticsReport {
             ]),
         ]
         problems = configuration.problemLog
+    }
+
+    /// Counts and times only, never pull request content or the token.
+    static func syncGroup(_ sync: SyncModel) -> Group {
+        let status = sync.status
+        let now = sync.now
+        var rows = [
+            Row(label: "Source", value: sync.source.title),
+            Row(label: "gh", value: sync.ghPath ?? "Not found"),
+            Row(label: "Account", value: status?.accountLogin ?? (status?.hasLogin == false ? "No gh login" : "Not checked yet")),
+        ]
+        if let status {
+            let run = status.lastRun
+            rows += [
+                Row(label: "Pull requests", value: "\(status.pullRequestCount), \(status.detailedCount) with full detail"),
+                Row(label: "Last sync", value: status.lastSuccessAt.map { "\($0.formatted(.iso8601)), \(RelativeAge.ago($0, now: now))" } ?? "Never"),
+                Row(label: "Last run", value: "\(run.totalRequests) requests, GraphQL \(run.graphQLPoints) points, REST \(run.restPoints) (\(run.restNotModified) not modified), \(String(format: "%.1f", status.lastRunSeconds ?? 0)) s"),
+                Row(label: "Since launch", value: "\(status.session.totalRequests) requests, GraphQL \(status.session.graphQLPoints) points, REST \(status.session.restPoints)"),
+                Row(label: "Problem", value: status.problem.map { $0.shortText(now: now) } ?? "None"),
+            ]
+            for (key, label) in [("graphql", "GraphQL limit"), ("core", "REST limit")] {
+                if let reading = status.rateLimits[key] { rows.append(Row(label: label, value: reading.summary)) }
+            }
+        }
+        rows.append(Row(label: "Index", value: (sync.indexLocation.path as NSString).abbreviatingWithTildeInPath))
+        return Group(title: "Sync", rows: rows)
     }
 
     var plainText: String {

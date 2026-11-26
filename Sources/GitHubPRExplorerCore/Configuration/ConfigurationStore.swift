@@ -300,7 +300,8 @@ public final class ConfigurationStore {
 
     /// The keys `set(key:value:)` takes.
     public static var settableKeys: [String] {
-        ["appearance", "defaultLayout", "hidesBotEventsInActivity", "updatesAutomatically"] + Experiment.allCases.map { "experiments.\($0.key)" }
+        ["appearance", "defaultLayout", "hidesBotEventsInActivity", "updatesAutomatically",
+         "pullRequestSource", "syncIntervalSeconds", "watchedRepositories"] + Experiment.allCases.map { "experiments.\($0.key)" }
     }
 
     /// Sets one setting from text, as `ctl config set` does. Returns what changed, in a sentence.
@@ -330,6 +331,29 @@ public final class ConfigurationStore {
             guard let flag = Self.bool(value) else { throw ConfigurationError("\(key) is true or false, not \"\(value)\".") }
             summary = flag ? "Updates install automatically" : "Updates wait to be checked for by hand"
             change = { $0.updatesAutomatically = flag }
+        case "pullRequestSource":
+            guard let source = PullRequestSource(rawValue: value) else {
+                throw ConfigurationError("pullRequestSource is one of \(PullRequestSource.allCases.map(\.rawValue).joined(separator: ", ")), not \"\(value)\".")
+            }
+            summary = "Pull requests come from \(source == .mock ? "the mock data" : "GitHub")"
+            change = { $0.pullRequestSource = source }
+        case "syncIntervalSeconds":
+            let range = ConfigurationSettings.syncIntervalRange
+            guard let seconds = Int(value), range.contains(seconds) else {
+                throw ConfigurationError("syncIntervalSeconds is a whole number of seconds from \(range.lowerBound) to \(range.upperBound), not \"\(value)\".")
+            }
+            summary = "Sync every \(seconds.isMultiple(of: 60) ? "\(seconds / 60) min" : "\(seconds) s")"
+            change = { $0.syncIntervalSeconds = seconds }
+        case "watchedRepositories":
+            // A comma-separated list. An empty value watches none.
+            let names = value.split(separator: ",").map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            for name in names where Repository(fullName: name) == nil || !Repository.isPlainName(name) {
+                throw ConfigurationError("\"\(name)\" is not a repository written as owner/name, such as acme/api. Separate several with commas.")
+            }
+            var unique: [String] = []
+            for name in names where !unique.contains(where: { $0.lowercased() == name.lowercased() }) { unique.append(name) }
+            summary = unique.isEmpty ? "Watch no repositories in full" : "Watch \(unique.joined(separator: ", ")) in full"
+            change = { $0.watchedRepositories = unique }
         default:
             if key.hasPrefix("experiments."), let experiment = Experiment(key: String(key.dropFirst("experiments.".count))) {
                 guard let flag = Self.bool(value) else { throw ConfigurationError("\(key) is true or false, not \"\(value)\".") }

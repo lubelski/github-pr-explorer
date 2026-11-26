@@ -1,0 +1,27 @@
+{
+  "data": {
+    "pr0": {
+      "id": "PR_kwDOAcmeApi101",
+      "mergeable": "MERGEABLE",
+      "mergeStateStatus": "BLOCKED",
+      "reviewDecision": "CHANGES_REQUESTED",
+      "mergeQueueEntry": null,
+      "commits": { "nodes": [ { "commit": { "oid": "1111111111111111111111111111111111111111", "statusCheckRollup": { "contexts": { "nodes": [
+        { "__typename": "CheckRun", "name": "unit-tests", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "2026-11-25T10:06:00Z", "completedAt": "2026-11-25T10:10:00Z", "title": null, "isRequired": true },
+        { "__typename": "CheckRun", "name": "e2e-chrome", "status": "COMPLETED", "conclusion": "FAILURE", "startedAt": "2026-11-25T10:06:00Z", "completedAt": "2026-11-25T10:30:00Z", "title": "2 tests failed", "isRequired": true },
+        { "__typename": "StatusContext", "context": "coverage", "state": "SUCCESS", "createdAt": "2026-11-25T10:12:00Z", "description": "92%", "isRequired": false }
+      ] } } } } ] }
+    },
+    "pr1": {
+      "id": "PR_kwDOAcmeWeb55",
+      "mergeable": "UNKNOWN",
+      "mergeStateStatus": "UNKNOWN",
+      "reviewDecision": null,
+      "mergeQueueEntry": null,
+      "commits": { "nodes": [ { "commit": { "oid": "2222222222222222222222222222222222222222", "statusCheckRollup": { "contexts": { "nodes": [
+        { "__typename": "CheckRun", "name": "build", "status": "IN_PROGRESS", "conclusion": null, "startedAt": "2026-11-25T17:50:00Z", "completedAt": null, "title": null, "isRequired": false }
+      ] } } } } ] }
+    },
+    "rateLimit": { "cost": 1, "remaining": 4983, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

@@ -240,6 +240,39 @@ enum PreviewRenderer {
                   pendingUpdate: ready) { model(example) },
         ]
 
+        // The title bar in GitHub mode (MAC-59). The data is the mock world: a render never
+        // uses the network or real pull requests. Only the sync's status is made up.
+        func synced(_ configure: (inout GitHubSyncStatus) -> Void, selection: PullRequestReference? = example,
+                    size: CGSize? = nil) -> AppModel {
+            var status = GitHubSyncStatus()
+            status.accountLogin = world.viewer.person.login
+            status.hasLogin = true
+            status.lastSuccessAt = world.now.addingTimeInterval(-4 * 60)
+            status.pullRequestCount = 218
+            status.detailedCount = 218
+            status.rateLimits["graphql"] = RateLimitReading(resource: "graphql", limit: 5000, remaining: 4870,
+                                                            resetAt: world.now.addingTimeInterval(40 * 60), readAt: world.now)
+            configure(&status)
+            let model = model(selection)
+            model.syncSummary = SyncStatusSummary(status: status, now: world.now)
+            return model
+        }
+        let hour = world.now.addingTimeInterval(38 * 60)
+        states += [
+            State(name: "titlebar-github-synced") { synced { _ in } },
+            State(name: "titlebar-github-synced-nothing-open") { synced({ _ in }, selection: nil) },
+            State(name: "titlebar-github-syncing") { synced { $0.phase = .listing } },
+            State(name: "titlebar-github-not-synced-yet") {
+                synced({ $0.lastSuccessAt = nil; $0.phase = .checkingLogin }, selection: nil)
+            },
+            State(name: "titlebar-github-gh-missing") { synced { $0.problem = .ghMissing; $0.hasLogin = false } },
+            State(name: "titlebar-github-signed-out") { synced { $0.problem = .signedOut; $0.hasLogin = false } },
+            State(name: "titlebar-github-offline") { synced { $0.problem = .offline } },
+            State(name: "titlebar-github-rate-limited") { synced { $0.problem = .rateLimited(until: hour) } },
+            State(name: "titlebar-github-budget-paused") { synced { $0.problem = .budgetPaused(until: hour) } },
+            State(name: "window-smallest-github-offline", size: CGSize(width: 900, height: 560)) { synced { $0.problem = .offline } },
+        ]
+
         // The diff pane over the page (MAC-53, Figma row 8).
         func diff(_ reference: PullRequestReference?, file: String, mode: DiffMode = .inline, thread: String? = nil,
                   layout: String = LayoutLibrary.fallbackID, tab: Int = 0) -> AppModel {

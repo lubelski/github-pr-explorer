@@ -2,7 +2,7 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after the Settings window and the configuration folder, and Sparkle, the release script and the icon.
+Last updated 2026-11-25, after the first read-only sync from GitHub (MAC-59).
 
 ## Where we are
 
@@ -17,6 +17,8 @@ The app ships the way the owner's other Mac apps do (MAC-47): Sparkle updates si
 The owner's first look at the window brought small changes (MAC-55): the app's name shows once, centered; freshness, the version and commit, and the layout menu sit at the right end of the title bar; the footer is gone; the list's width can be dragged; and a row above the list picks one of three fixed views, "Needs my review", "Mine" and "Everything open". The views are plain predicates until the filter language exists.
 
 Configuration has started (MAC-56, the first step of MAC-40). Settings live as JSON files in a configuration folder that the app watches and keeps in git, the Settings window writes those files, and `github-pr-explorer-ctl config` and `layouts` read and change them. Answers 11 and 12 below were built as defaults. Still to come for MAC-40: views, layout rules, and teams' facts and actions as files, MCP, and the command line's filter, rule and action commands.
+
+Real pull requests can be read (MAC-59), behind a setting that is off by default. `pullRequestSource` in `settings.json` is `mock` or `github`. With `github`, `GitHubSync` in the core library, the only part that uses the network, reads open pull requests that involve the signed-in person, and every open one in the watched repositories, through the `gh` login. It fetches in tiers: a light list pass on a timer, then detail, computed fields in small batches, and per-file patches from REST for pull requests that are new, changed, or opened. It is read-only and keeps to half of each hourly rate limit. The index is saved as one JSON file beside the configuration folder, the window opens on it before the first fetch returns, and the title bar says plainly when `gh` is missing, signed out, offline or rate limited. Settings has a GitHub section, and `ctl sync run`, `sync check` and `sync status` do the same from the command line. One real sync of 32 pull requests took 67 requests and about 39 seconds, and a sync with nothing changed took 10 requests. Still to come: the probes below, a database in place of the JSON file, push, and actions.
 
 ## What the research says
 
@@ -85,7 +87,7 @@ Estimates are agent build time. The calendar is set by how fast the owner can re
 |---|---|---|
 | 0 | Write the idea down and try layouts in Figma | In progress. Judgment call, budget, 2 review rounds, known by the owner's first pass over the Figma rows. |
 | 1 | Probes (below) | Not started. Field-checked, finish line, 1 to 2 days of build time, known by the end of the sync cost probe. |
-| 2 | Index and sync core as a library with tests and a command-line tool, no window | Not estimated. Depends on phase 1. |
+| 2 | Index and sync core as a library with tests and a command-line tool, no window | Started in MAC-59: a read-only sync over GraphQL and REST into a JSON snapshot, behind a setting. The probes still decide push and the index's database. |
 | 3 | A window that lists and opens pull requests from the index, with a fixed default layout | Started on mock data: the list and the page from two built-in layouts. Needs the index from phase 2. |
 | 4 | Blocks, layouts as documents, and Edit Layout | Not estimated. |
 | 5 | Layout rules, on the shared filter language | Not estimated. |

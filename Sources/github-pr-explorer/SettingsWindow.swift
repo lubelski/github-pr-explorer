@@ -10,6 +10,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case general
     case layouts
     case history
+    case github
     case experiments
     case debugging
 
@@ -20,6 +21,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "General"
         case .layouts: "Layouts"
         case .history: "History"
+        case .github: "GitHub"
         case .experiments: "Experiments"
         case .debugging: "Debugging"
         }
@@ -30,18 +32,20 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .general: "gearshape"
         case .layouts: "rectangle.split.3x1"
         case .history: "clock.arrow.circlepath"
+        case .github: "arrow.triangle.pull"
         case .experiments: "flask"
         case .debugging: "ladybug"
         }
     }
 }
 
-/// What the Settings window needs besides the configuration: what Debugging reports, and the
-/// updater for General's Updates group.
+/// What the Settings window needs besides the configuration: what Debugging reports, the
+/// updater for General's Updates group, and the sync for the GitHub section.
 struct SettingsContext {
     var build: BuildInfo
     var world: MockWorld
     var updater: AppUpdater
+    var sync: SyncModel
 }
 
 /// The Settings window's content: a fixed-width sidebar of sections, and the section beside it.
@@ -108,6 +112,7 @@ struct SettingsRootView: View {
         case .general: GeneralSettingsView(configuration: configuration, context: context)
         case .layouts: LayoutsSettingsView(configuration: configuration)
         case .history: HistorySettingsView(configuration: configuration)
+        case .github: GitHubSettingsView(configuration: configuration, sync: context.sync)
         case .experiments: ExperimentsSettingsView(configuration: configuration)
         case .debugging: DebuggingSettingsView(configuration: configuration, context: context)
         }

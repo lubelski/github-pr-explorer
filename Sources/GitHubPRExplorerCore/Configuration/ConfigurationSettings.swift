@@ -23,25 +23,48 @@ public struct ConfigurationSettings: Codable, Sendable, Hashable {
     public var updatesAutomatically: Bool
     /// The experiments that are on, by name. One left out is off.
     public var experiments: [String: Bool]
+    /// Where the pull requests the window shows come from: the built-in mock world, or GitHub
+    /// through the `gh` login. Mock by default, so nothing changes until a person opts in.
+    public var pullRequestSource: PullRequestSource
+    /// How often the light list pass runs while the source is GitHub, in seconds.
+    public var syncIntervalSeconds: Int
+    /// Repositories, as `owner/name`, whose every open pull request is fetched, besides the
+    /// ones that involve the signed-in person.
+    public var watchedRepositories: [String]
+
+    public static let syncIntervalRange = 60...3600
 
     public init(formatVersion: Int = currentFormatVersion, appearance: Appearance = .system,
                 defaultLayout: String = LayoutLibrary.fallbackID, hidesBotEventsInActivity: Bool = true,
-                updatesAutomatically: Bool = true, experiments: [String: Bool] = [:]) {
+                updatesAutomatically: Bool = true, experiments: [String: Bool] = [:],
+                pullRequestSource: PullRequestSource = .mock, syncIntervalSeconds: Int = 300,
+                watchedRepositories: [String] = []) {
         self.formatVersion = formatVersion
         self.appearance = appearance
         self.defaultLayout = defaultLayout
         self.hidesBotEventsInActivity = hidesBotEventsInActivity
         self.updatesAutomatically = updatesAutomatically
         self.experiments = experiments
+        self.pullRequestSource = pullRequestSource
+        self.syncIntervalSeconds = syncIntervalSeconds
+        self.watchedRepositories = watchedRepositories
+    }
+
+    /// The watched repositories that parse as `owner/name`. `decode` refuses a file with one
+    /// that does not, so in a file the app applied this is all of them.
+    public var watchedRepositoryList: [Repository] {
+        watchedRepositories.compactMap(Repository.init(fullName:))
     }
 
     public static let defaults = ConfigurationSettings()
 
     /// The keys a settings file may hold, for the unknown-key check and `config set`.
-    public static let keys = ["formatVersion", "appearance", "defaultLayout", "hidesBotEventsInActivity", "updatesAutomatically", "experiments"]
+    public static let keys = ["formatVersion", "appearance", "defaultLayout", "hidesBotEventsInActivity", "updatesAutomatically", "experiments",
+                              "pullRequestSource", "syncIntervalSeconds", "watchedRepositories"]
 
     enum CodingKeys: String, CodingKey {
         case formatVersion, appearance, defaultLayout, hidesBotEventsInActivity, updatesAutomatically, experiments
+        case pullRequestSource, syncIntervalSeconds, watchedRepositories
     }
 
     public init(from decoder: any Decoder) throws {
@@ -55,6 +78,9 @@ public struct ConfigurationSettings: Codable, Sendable, Hashable {
         updatesAutomatically = try container.decodeIfPresent(Bool.self, forKey: .updatesAutomatically)
             ?? defaults.updatesAutomatically
         experiments = try container.decodeIfPresent([String: Bool].self, forKey: .experiments) ?? defaults.experiments
+        pullRequestSource = try container.decodeIfPresent(PullRequestSource.self, forKey: .pullRequestSource) ?? defaults.pullRequestSource
+        syncIntervalSeconds = try container.decodeIfPresent(Int.self, forKey: .syncIntervalSeconds) ?? defaults.syncIntervalSeconds
+        watchedRepositories = try container.decodeIfPresent([String].self, forKey: .watchedRepositories) ?? defaults.watchedRepositories
     }
 
     public func isOn(_ experiment: Experiment) -> Bool { experiments[experiment.key] ?? false }
@@ -88,6 +114,14 @@ public struct ConfigurationSettings: Codable, Sendable, Hashable {
         if settings.defaultLayout.trimmingCharacters(in: .whitespaces).isEmpty {
             throw LayoutFileError(fileName: fileName, path: "defaultLayout", problem: "the default layout is empty")
         }
+        if !syncIntervalRange.contains(settings.syncIntervalSeconds) {
+            throw LayoutFileError(fileName: fileName, path: "syncIntervalSeconds",
+                                  problem: "the sync interval is \(settings.syncIntervalSeconds) seconds. It must be from \(syncIntervalRange.lowerBound) to \(syncIntervalRange.upperBound).")
+        }
+        for (position, name) in settings.watchedRepositories.enumerated() where Repository(fullName: name) == nil || !Repository.isPlainName(name) {
+            throw LayoutFileError(fileName: fileName, path: "watchedRepositories[\(position)]",
+                                  problem: "\"\(name)\" is not a repository written as owner/name, such as acme/api")
+        }
         for name in settings.experiments.keys.sorted() where Experiment(key: name) == nil {
             let known = Experiment.allCases.map(\.key)
             throw LayoutFileError(fileName: fileName, path: "experiments.\(name)",
@@ -96,6 +130,25 @@ public struct ConfigurationSettings: Codable, Sendable, Hashable {
                                     : "Known experiments: \(known.joined(separator: ", "))."))
         }
         return settings
+    }
+}
+
+/// Where the window's pull requests come from.
+public enum PullRequestSource: String, Codable, Sendable, Hashable, CaseIterable {
+    /// The built-in mock world: placeholder pull requests, no network, no sign-in.
+    case mock
+    /// GitHub, read through the `gh` login on this Mac.
+    case github
+
+    public init(from decoder: any Decoder) throws {
+        self = try decodeNamedValue(decoder, as: PullRequestSource.self)
+    }
+
+    public var title: String {
+        switch self {
+        case .mock: "Mock data"
+        case .github: "GitHub"
+        }
     }
 }
 

@@ -5,12 +5,15 @@ import SwiftUI
 /// The app's main window and its Settings window. Started from `main.swift`, which handles
 /// `--render-previews` first, so a render never opens the real configuration folder.
 ///
-/// It reads the built-in mock world through the index: no network and no sign-in. What can be
-/// configured comes from the configuration folder, through `ConfigurationModel`.
+/// It reads the built-in mock world through the index, with no network and no sign-in, until
+/// `pullRequestSource` is `github`. Then `SyncModel` runs the sync and hands the window each
+/// new index. What can be configured comes from the configuration folder, through
+/// `ConfigurationModel`.
 struct GitHubPRExplorerApp: App {
     @State private var model: AppModel
     @State private var configuration: ConfigurationModel
     @State private var updater: AppUpdater
+    @State private var sync: SyncModel
 
     init() {
         let model = AppModel(
@@ -21,9 +24,14 @@ struct GitHubPRExplorerApp: App {
             windowState: .standard)
         let configuration = ConfigurationModel(store: ConfigurationStore(folder: ConfigurationStore.defaultFolder))
         let updater = AppUpdater()
+        let sync = SyncModel(app: model)
+        // Opening a pull request asks the sync to fetch it sooner. It is never a fetch.
+        model.onSelect = { [weak sync] id in sync?.requestSooner(id) }
         // Every change, from Settings, a hand edit or ctl, reaches the open window at once.
         configuration.onApply = { [weak model] snapshot, previous in
             model?.apply(snapshot, previous: previous)
+            // Where pull requests come from, how often to sync, and what to watch.
+            sync.apply(snapshot.settings)
             AppAppearance.apply(snapshot.settings.appearance)
             // settings.json is where this setting lives. Sparkle keeps its own copy, which is
             // set from the file on launch and on every change.
@@ -33,6 +41,7 @@ struct GitHubPRExplorerApp: App {
         _model = State(initialValue: model)
         _configuration = State(initialValue: configuration)
         _updater = State(initialValue: updater)
+        _sync = State(initialValue: sync)
     }
 
     var body: some Scene {
@@ -64,7 +73,7 @@ struct GitHubPRExplorerApp: App {
         // The Settings scene puts Settings… in the app menu, with Command-comma.
         Settings {
             SettingsRootView(configuration: configuration,
-                             context: SettingsContext(build: .current, world: .standard, updater: updater))
+                             context: SettingsContext(build: .current, world: .standard, updater: updater, sync: sync))
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: SettingsRootView.size.width, height: SettingsRootView.size.height)

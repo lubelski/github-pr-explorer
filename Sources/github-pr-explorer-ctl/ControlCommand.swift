@@ -17,33 +17,38 @@ struct ControlCommandResult: Equatable {
     }
 }
 
-/// `github-pr-explorer-ctl`: inspect the index from the command line, and read and change the
-/// configuration folder. The index today is the mock world.
+/// `github-pr-explorer-ctl`: inspect the index from the command line, run a sync, and read and
+/// change the configuration folder. The index is the mock world or the synced GitHub index.
 enum ControlCommand {
     static let name = "github-pr-explorer-ctl"
 
     static let help = """
-        \(name): inspect github-pr-explorer's pull request index, and read and change its
-        configuration, from the command line. The index is the built-in mock world. Nothing
-        here uses the network.
+        \(name): inspect github-pr-explorer's pull request index, run a sync, and read and
+        change its configuration, from the command line. The index is the built-in mock world,
+        or the pull requests synced from GitHub. Only `sync run` and `sync check` use the network.
 
         Commands:
           pull-requests list     One line per pull request: reference, status, title.
           pull-request show      Every section of one pull request.
+          sync                   GitHub: run one sync, check the gh login, or report status.
           mock-data export       Write the mock world to JSON files.
           config                 The configuration folder: path, validate, show, set, history,
                                  diff, restore.
           layouts                Page layouts: list, show, duplicate.
 
         Options:
-          --config <folder>      For config and layouts: use this configuration folder instead
-                                 of the app's.
+          --config <folder>      Use this configuration folder instead of the app's.
+          --index <folder>       Use this synced index folder instead of the app's, which is
+                                 ~/Library/Application Support/github-pr-explorer/index.
+          --source mock|github   For list and show: which index to read. Default: the
+                                 pullRequestSource setting.
 
         Run `\(name) <command> --help` for a command's options.
         """
 
     static let listHelp = """
         \(name) pull-requests list [--repo <owner/name>] [--state open|merged|closed|all] [--search <text>]
+                                   [--source mock|github]
 
         Prints one line per pull request, most recently updated first:
         the reference, the status symbol and sentence, and the title, separated by tabs.
@@ -53,16 +58,20 @@ enum ControlCommand {
           --state <state>       open, merged, closed, or all. Default: all.
           --search <text>       Only pull requests matching every word, in the title, number,
                                 author, repository or a changed file's path.
+          --source mock|github  The mock world, or the index synced from GitHub. Default: the
+                                pullRequestSource setting.
         """
 
     static let showHelp = """
-        \(name) pull-request show <owner/name#number> [--json]
+        \(name) pull-request show <owner/name#number> [--json] [--source mock|github]
 
         Prints every section of one pull request: summary, description, checks, reviews,
         merge state, code owners, files, commits, threads, comments, timeline and sources.
 
         Options:
-          --json   Print the whole pull request as JSON instead.
+          --json                Print the whole pull request as JSON instead.
+          --source mock|github  The mock world, or the index synced from GitHub. Default: the
+                                pullRequestSource setting.
 
         Example:
           \(name) pull-request show acme/api#4826
@@ -77,12 +86,32 @@ enum ControlCommand {
         exports are byte for byte the same. The directory is created if it does not exist.
         """
 
-    static func run(_ arguments: [String], world: MockWorld = .standard) -> ControlCommandResult {
+    /// Runs a command. With `sourceFromSettings`, list and show read the index the
+    /// `pullRequestSource` setting names when `--source` is not given, as the real tool does.
+    /// Tests leave it off, so they read the mock world and never the real folders.
+    static func run(_ arguments: [String], world: MockWorld = .standard, sourceFromSettings: Bool = false) -> ControlCommandResult {
         var arguments = arguments
         let folder: URL
         switch configurationFolder(from: &arguments) {
         case .success(let url): folder = url
         case .failure(let error): return .failure(error.message, exitCode: 2)
+        }
+        let indexFolder: URL
+        switch Self.indexFolder(from: &arguments) {
+        case .success(let url): indexFolder = url
+        case .failure(let error): return .failure(error.message, exitCode: 2)
+        }
+        var source: PullRequestSource?
+        if let flag = arguments.firstIndex(of: "--source") {
+            guard flag + 1 < arguments.count, let parsed = PullRequestSource(rawValue: arguments[flag + 1]) else {
+                return .failure("--source needs mock or github.\n", exitCode: 2)
+            }
+            source = parsed
+            arguments.removeSubrange(flag...flag + 1)
+        }
+        func pullRequests() -> Result<IndexChoice, ControlCommandResultError> {
+            let chosen = source ?? (sourceFromSettings ? settingsSource(folder) : .mock)
+            return chosen == .mock ? .success(IndexChoice(world: world)) : IndexChoice.synced(indexFolder)
         }
         guard let first = arguments.first else { return .failure(help + "\n", exitCode: 2) }
         if first == "--help" || first == "-h" || first == "help" { return .success(help + "\n") }
@@ -93,13 +122,19 @@ enum ControlCommand {
                 if rest.first == "--help" || rest.first == "-h" { return .success(listHelp + "\n") }
                 return .failure("Unknown command: pull-requests \(rest.first ?? "").\n\n\(listHelp)\n", exitCode: 2)
             }
-            return list(Array(rest.dropFirst()), world: world)
+            switch pullRequests() {
+            case .success(let choice): return list(Array(rest.dropFirst()), choice: choice)
+            case .failure(let error): return .failure(error.message)
+            }
         case "pull-request":
             guard rest.first == "show" else {
                 if rest.first == "--help" || rest.first == "-h" { return .success(showHelp + "\n") }
                 return .failure("Unknown command: pull-request \(rest.first ?? "").\n\n\(showHelp)\n", exitCode: 2)
             }
-            return show(Array(rest.dropFirst()), world: world)
+            switch pullRequests() {
+            case .success(let choice): return show(Array(rest.dropFirst()), choice: choice)
+            case .failure(let error): return .failure(error.message)
+            }
         case "mock-data":
             guard rest.first == "export" else {
                 if rest.first == "--help" || rest.first == "-h" { return .success(exportHelp + "\n") }
@@ -110,6 +145,8 @@ enum ControlCommand {
             return config(rest, folder: folder)
         case "layouts":
             return layouts(rest, folder: folder)
+        case "sync":
+            return syncStatusOrHelp(rest, indexFolder: indexFolder)
         default:
             return .failure("Unknown command: \(first).\n\n\(help)\n", exitCode: 2)
         }
@@ -117,7 +154,7 @@ enum ControlCommand {
 
     // MARK: pull-requests list
 
-    static func list(_ arguments: [String], world: MockWorld) -> ControlCommandResult {
+    static func list(_ arguments: [String], choice: IndexChoice) -> ControlCommandResult {
         if arguments.contains("--help") || arguments.contains("-h") { return .success(listHelp + "\n") }
         var repository: Repository?
         var state: PullRequestState?
@@ -142,14 +179,14 @@ enum ControlCommand {
                 return .failure("Unknown option: \(argument).\n\n\(listHelp)\n", exitCode: 2)
             }
         }
-        if let repository, !world.repositories.contains(repository) {
+        if let repository, !choice.repositories.contains(repository) {
             return .failure("No repository \(repository.fullName) in the index.\n")
         }
-        let index = world.index
+        let index = choice.index
         let lines = index.search(search)
             .filter { repository == nil || $0.repository == repository }
             .filter { state == nil || $0.state == state }
-            .map { listLine($0, viewer: index.viewer, now: world.now) }
+            .map { listLine($0, viewer: index.viewer, now: choice.now) }
         return .success(lines.map { $0 + "\n" }.joined())
     }
 
@@ -159,7 +196,7 @@ enum ControlCommand {
 
     // MARK: pull-request show
 
-    static func show(_ arguments: [String], world: MockWorld) -> ControlCommandResult {
+    static func show(_ arguments: [String], choice: IndexChoice) -> ControlCommandResult {
         if arguments.contains("--help") || arguments.contains("-h") { return .success(showHelp + "\n") }
         let asJSON = arguments.contains("--json")
         let positional = arguments.filter { $0 != "--json" }
@@ -172,7 +209,7 @@ enum ControlCommand {
         guard let reference = PullRequestReference(parsing: positional[0]) else {
             return .failure("Not a pull request reference: \(positional[0]). Write it as owner/name#number, such as acme/api#4826.\n", exitCode: 2)
         }
-        let index = world.index
+        let index = choice.index
         guard let pr = index.pullRequest(reference) else {
             return .failure("No pull request \(reference) in the index.\n")
         }
@@ -184,7 +221,7 @@ enum ControlCommand {
                 return .failure("Could not encode \(reference): \(error)\n")
             }
         }
-        return .success(PullRequestReport.text(for: pr, viewer: index.viewer, now: world.now))
+        return .success(PullRequestReport.text(for: pr, viewer: index.viewer, now: choice.now))
     }
 
     // MARK: mock-data export

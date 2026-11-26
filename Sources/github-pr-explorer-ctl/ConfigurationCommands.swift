@@ -28,6 +28,8 @@ extension ControlCommand {
         Examples:
           \(name) config set defaultLayout tabbed
           \(name) config set appearance dark
+          \(name) config set pullRequestSource github
+          \(name) config set watchedRepositories "acme/api, acme/web"
           \(name) config history --limit 5
           \(name) config restore 1a2b3c4 settings.json
         """
@@ -197,6 +199,9 @@ extension ControlCommand {
         text += "  defaultLayout             \(settings.defaultLayout)\n"
         text += "  hidesBotEventsInActivity  \(settings.hidesBotEventsInActivity)\n"
         text += "  updatesAutomatically      \(settings.updatesAutomatically)\n"
+        text += "  pullRequestSource         \(settings.pullRequestSource.rawValue)\n"
+        text += "  syncIntervalSeconds       \(settings.syncIntervalSeconds)\n"
+        text += "  watchedRepositories       \(settings.watchedRepositories.isEmpty ? "(none)" : settings.watchedRepositories.joined(separator: ", "))\n"
         if Experiment.allCases.isEmpty {
             text += "  experiments               none right now\n"
         } else {

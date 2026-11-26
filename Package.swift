@@ -15,7 +15,7 @@ let package = Package(
             // The layouts that ship, as the JSON files a person's own layout would be.
             resources: [.copy("Layout/BuiltInLayouts")]
         ),
-        // The command line tool over the index. Today it reads the mock world.
+        // The command line tool over the index: the mock world or the synced one, and one sync.
         .executableTarget(
             name: "github-pr-explorer-ctl",
             dependencies: ["GitHubPRExplorerCore"]
@@ -28,7 +28,9 @@ let package = Package(
         ),
         .testTarget(
             name: "GitHubPRExplorerCoreTests",
-            dependencies: ["GitHubPRExplorerCore", "github-pr-explorer-ctl"]
+            dependencies: ["GitHubPRExplorerCore", "github-pr-explorer-ctl"],
+            // Hand-written GitHub answers, read from the source folder by `FakeGitHub`.
+            exclude: ["Fixtures"]
         ),
     ]
 )

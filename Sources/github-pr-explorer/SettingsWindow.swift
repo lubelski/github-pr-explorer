@@ -11,6 +11,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case layouts
     case history
     case github
+    case shorthands
     case experiments
     case debugging
 
@@ -22,6 +23,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .layouts: "Layouts"
         case .history: "History"
         case .github: "GitHub"
+        case .shorthands: "Shorthands"
         case .experiments: "Experiments"
         case .debugging: "Debugging"
         }
@@ -33,6 +35,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .layouts: "rectangle.split.3x1"
         case .history: "clock.arrow.circlepath"
         case .github: "arrow.triangle.pull"
+        case .shorthands: "character.textbox"
         case .experiments: "flask"
         case .debugging: "ladybug"
         }
@@ -46,6 +49,9 @@ struct SettingsContext {
     var world: MockWorld
     var updater: AppUpdater
     var sync: SyncModel
+    /// The index the main window shows, for the repositories and people Shorthands offers.
+    /// Without one, the mock world's.
+    var index: (@MainActor () -> any PullRequestIndex)?
 }
 
 /// The Settings window's content: a fixed-width sidebar of sections, and the section beside it.
@@ -113,6 +119,8 @@ struct SettingsRootView: View {
         case .layouts: LayoutsSettingsView(configuration: configuration)
         case .history: HistorySettingsView(configuration: configuration)
         case .github: GitHubSettingsView(configuration: configuration, sync: context.sync)
+        case .shorthands: ShorthandsSettingsView(configuration: configuration,
+                                                 candidates: ShorthandCandidates(index: context.index?() ?? context.world.index))
         case .experiments: ExperimentsSettingsView(configuration: configuration)
         case .debugging: DebuggingSettingsView(configuration: configuration, context: context)
         }

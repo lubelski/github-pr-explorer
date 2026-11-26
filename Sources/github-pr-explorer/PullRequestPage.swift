@@ -26,6 +26,7 @@ struct PullRequestPage: View {
             }
         }
         .background(Style.pageBackground)
+        .environment(\.shorthands, model.shorthands)
         .environment(\.pageActions, PageActions(
             openFilePath: model.panePath.openFilePath,
             openFile: { path in change { model.openFile(path) } },
@@ -109,7 +110,7 @@ struct PageHeader: View {
                             .buttonStyle(.borderless)
                             .help("Show the pull request list")
                     }
-                    Text(verbatim: "\(pr.repository.fullName) #\(pr.number)")
+                    ShortenedName(model.shorthands.reference(of: pr))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)

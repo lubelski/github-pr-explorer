@@ -470,10 +470,11 @@ struct ThreadMarkerButton: View {
     let marker: DiffThreadMarker
     let isOpen: Bool
     let open: (String) -> Void
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
         Button { if let first = marker.threadIDs.first { open(first) } } label: {
-            Text(marker.label)
+            Text(marker.label(using: shorthands))
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(isOpen ? Color.white : Color.accentColor)
                 .padding(.horizontal, 7)

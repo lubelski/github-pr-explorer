@@ -144,7 +144,7 @@ struct PullRequestList: View {
                 ScrollViewReader { proxy in
                 List(selection: rendering ? .constant(nil) : $model.selection) {
                     ForEach(listed) { pr in
-                        PullRequestRow(pullRequest: pr, status: model.status(for: pr))
+                        PullRequestRow(pullRequest: pr, status: model.status(for: pr), shorthands: model.shorthands)
                             .tag(pr.id)
                             .id(pr.id)
                             .listRowBackground(rendering && model.selection == pr.id
@@ -257,6 +257,7 @@ struct ListViewPicker: View {
 struct PullRequestRow: View {
     let pullRequest: PullRequest
     let status: StatusSentence
+    var shorthands: Shorthands = .none
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 7) {
@@ -265,13 +266,15 @@ struct PullRequestRow: View {
                 Text(pullRequest.title)
                     .font(.system(size: 13))
                     .lineLimit(1)
-                Text(verbatim: "\(pullRequest.repository.fullName) #\(pullRequest.number) · \(status.sentence)")
+                let reference = shorthands.reference(of: pullRequest)
+                Text(verbatim: "\(reference.text) · \(status.sentence)")
                     .font(Style.secondary)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
+                    .accessibilityLabel(reference.isShortened ? "\(reference.accessibilityLabel) · \(status.sentence)" : "\(reference.text) · \(status.sentence)")
             }
         }
         .padding(.vertical, 3)
-        .help("\(pullRequest.title)\n\(status.text)")
+        .help("\(pullRequest.title)\n\(shorthands.reference(of: pullRequest).help.map { $0 + "\n" } ?? "")\(status.text)")
     }
 }

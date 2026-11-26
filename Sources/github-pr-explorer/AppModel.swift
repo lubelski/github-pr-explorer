@@ -23,6 +23,9 @@ final class AppModel {
     var library: LayoutLibrary
     /// Whether Activity starts with bot events folded away, from `settings.json`.
     var hidesBotEventsInActivity = true
+    /// The short names drawn for repositories and people, from `shorthands.json`. None by
+    /// default, and then every label is as it was.
+    var shorthands = Shorthands.none
 
     var searchText = ""
     /// The pull request shown. Choosing another closes its panes: they belong to the pull
@@ -77,12 +80,12 @@ final class AppModel {
 
     /// The pull requests in the chosen view that match the search, most recently updated first.
     var listedPullRequests: [PullRequest] {
-        listView.pullRequests(in: index.search(searchText), viewer: index.viewer)
+        listView.pullRequests(in: index.search(searchText, shorthands: shorthands), viewer: index.viewer)
     }
 
     /// How many pull requests each view holds, within the search.
     var countsByView: [FixedListView: Int] {
-        let found = index.search(searchText)
+        let found = index.search(searchText, shorthands: shorthands)
         let viewer = index.viewer
         return Dictionary(uniqueKeysWithValues: FixedListView.allCases.map { view in
             (view, found.count { view.includes($0, viewer: viewer) })
@@ -133,6 +136,7 @@ final class AppModel {
     func apply(_ configuration: ConfigurationSnapshot, previous: ConfigurationSnapshot?) {
         library = configuration.library
         hidesBotEventsInActivity = configuration.settings.hidesBotEventsInActivity
+        shorthands = configuration.shorthands
         let defaultID = configuration.defaultLayout.id
         if previous == nil || previous?.defaultLayout.id != defaultID {
             layoutID = defaultID

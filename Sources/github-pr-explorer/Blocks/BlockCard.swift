@@ -95,3 +95,35 @@ extension BlockKind {
         }
     }
 }
+
+extension EnvironmentValues {
+    /// The short names drawn for repositories and people on the page, from `shorthands.json`.
+    /// Every name a block or pane draws comes through it. None by default.
+    @Entry var shorthands = Shorthands.none
+}
+
+/// A repository's or a person's name as a label draws it. A shortened name shows its full name
+/// on hover, and VoiceOver reads both. A name with no shorthand is plain text, as it was.
+struct ShortenedName: View {
+    let name: DisplayName
+
+    init(_ name: DisplayName) { self.name = name }
+
+    var body: some View {
+        if name.isShortened {
+            Text(verbatim: name.text)
+                .help(name.fullName)
+                .accessibilityLabel(name.accessibilityLabel)
+        } else {
+            Text(verbatim: name.text)
+        }
+    }
+}
+
+extension View {
+    /// A tooltip only when there is text for one, so a label with nothing shortened keeps
+    /// whatever tooltip the view around it has.
+    @ViewBuilder func optionalHelp(_ text: String?) -> some View {
+        if let text { help(text) } else { self }
+    }
+}

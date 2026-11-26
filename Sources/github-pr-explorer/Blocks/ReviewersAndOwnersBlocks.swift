@@ -6,9 +6,10 @@ struct ReviewersBlock: View {
     let pullRequest: PullRequest
     let size: BlockSize
     let context: BlockContext
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
-        let rows = ReviewerRow.rows(for: pullRequest, viewer: context.viewer)
+        let rows = ReviewerRow.rows(for: pullRequest, viewer: context.viewer, shorthands: shorthands)
         if rows.isEmpty {
             EmptyBlockText("No reviewers yet, and none requested.")
         } else if size == .small {
@@ -26,7 +27,7 @@ struct ReviewersBlock: View {
             LazyVStack(alignment: .leading, spacing: 0) {
                 ForEach(rows) { row in
                     HStack(spacing: 6) {
-                        Text(row.name).lineLimit(1)
+                        ShortenedName(row.label).lineLimit(1)
                         if row.isCodeOwnerRequest {
                             Text("code owner").font(Style.secondary).foregroundStyle(.tertiary)
                         }
@@ -62,6 +63,7 @@ struct Initials: View {
 struct OwnersTouchedBlock: View {
     let pullRequest: PullRequest
     let size: BlockSize
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
         let matches = pullRequest.codeOwners
@@ -70,7 +72,8 @@ struct OwnersTouchedBlock: View {
         } else if size == .small {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(matches.enumerated()), id: \.offset) { _, match in
-                    Text("\(match.owners.joined(separator: ", ")) · \(fileCount(match.paths.count))")
+                    Text(verbatim: "\(owners(match.owners).text) · \(fileCount(match.paths.count))")
+                        .optionalHelp(owners(match.owners).help)
                 }
             }
         } else {
@@ -80,7 +83,7 @@ struct OwnersTouchedBlock: View {
                         HStack(spacing: 6) {
                             Text(match.pattern)
                             Image(systemName: "arrow.right").font(.system(size: 10)).foregroundStyle(.secondary)
-                            Text(match.owners.joined(separator: ", ")).fontWeight(.semibold)
+                            ShortenedName(owners(match.owners)).fontWeight(.semibold)
                         }
                         Text(fileList(match.paths))
                             .font(Style.secondary)
@@ -90,6 +93,13 @@ struct OwnersTouchedBlock: View {
                 }
             }
         }
+    }
+
+    /// The owners as one label, each `@login` with its shorthand.
+    private func owners(_ handles: [String]) -> DisplayName {
+        let names = handles.map(shorthands.name(forHandle:))
+        return DisplayName(text: names.map(\.text).joined(separator: ", "), fullName: handles.joined(separator: ", "),
+                           isShortened: names.contains(where: \.isShortened))
     }
 
     private func fileCount(_ count: Int) -> String { count == 1 ? "1 file" : "\(count) files" }

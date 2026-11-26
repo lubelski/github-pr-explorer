@@ -10,6 +10,7 @@ struct ThreadPane: View {
     let now: Date
 
     private let notConnected = "Not connected to GitHub yet"
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
         VStack(spacing: 0) {
@@ -87,7 +88,7 @@ struct ThreadPane: View {
             Avatar(person: comment.author)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline) {
-                    Text(comment.author.displayName).font(.system(size: 13, weight: .semibold))
+                    ShortenedName(shorthands.name(for: comment.author)).font(.system(size: 13, weight: .semibold))
                     Spacer(minLength: 8)
                     Text(RelativeAge.ago(comment.createdAt, now: now))
                         .font(Style.secondary)

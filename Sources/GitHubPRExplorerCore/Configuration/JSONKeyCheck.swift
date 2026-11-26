@@ -26,6 +26,11 @@ enum JSONKeyCheck {
         "pullRequestSource": .value, "syncIntervalSeconds": .value, "watchedRepositories": .array(.value),
     ])
 
+    static let shorthandsShape = Shape.object([
+        "formatVersion": .value,
+        "shorthands": .array(.object(["kind": .value, "for": .value, "shorthand": .value])),
+    ])
+
     static let layoutShape = Shape.object([
         "formatVersion": .value, "id": .value, "name": .value,
         "tabs": .array(.object([

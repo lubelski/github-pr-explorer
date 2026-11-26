@@ -131,15 +131,18 @@ public struct ReviewerRow: Sendable, Hashable, Identifiable {
 
     /// `@login` or `@org/team`.
     public var id: String
+    /// The person's display name, or the team's handle, in full.
     public var name: String
+    /// The name as the row draws it: the person's shorthand when there is one, otherwise `name`.
+    public var label: DisplayName
     public var state: State
     /// The request names the viewer or one of the viewer's teams.
     public var isViewer: Bool
     public var isCodeOwnerRequest: Bool
 
     /// Each person's latest review, oldest first, then each review still asked for. A person
-    /// asked again after reviewing shows as asked, once.
-    public static func rows(for pr: PullRequest, viewer: Viewer) -> [ReviewerRow] {
+    /// asked again after reviewing shows as asked, once. Names take their shorthands.
+    public static func rows(for pr: PullRequest, viewer: Viewer, shorthands: Shorthands = .none) -> [ReviewerRow] {
         var latest: [String: Review] = [:]
         for review in pr.reviews where review.reviewer.login != pr.author.login {
             if let existing = latest[review.reviewer.login], existing.submittedAt > review.submittedAt { continue }
@@ -150,11 +153,13 @@ public struct ReviewerRow: Sendable, Hashable, Identifiable {
             .filter { !requested.contains($0.reviewer.handle) }
             .sorted { $0.submittedAt == $1.submittedAt ? $0.reviewer.login < $1.reviewer.login : $0.submittedAt < $1.submittedAt }
             .map { review in
-                ReviewerRow(id: review.reviewer.handle, name: review.reviewer.displayName, state: State(review.state),
+                ReviewerRow(id: review.reviewer.handle, name: review.reviewer.displayName,
+                            label: shorthands.name(for: review.reviewer), state: State(review.state),
                             isViewer: viewer.isViewer(review.reviewer), isCodeOwnerRequest: false)
             }
         let asked = pr.reviewRequests.map { request in
-            ReviewerRow(id: request.reviewer.handle, name: request.reviewer.displayName, state: .requested,
+            ReviewerRow(id: request.reviewer.handle, name: request.reviewer.displayName,
+                        label: shorthands.name(for: request.reviewer), state: .requested,
                         isViewer: request.isRequested(from: viewer), isCodeOwnerRequest: request.isCodeOwnerRequest)
         }
         return reviewed + asked

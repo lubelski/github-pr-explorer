@@ -4,12 +4,24 @@ import Foundation
 public struct DiffThreadMarker: Sendable, Hashable {
     /// Oldest first. The marker opens the first.
     public var threadIDs: [String]
-    /// The person who started the first thread.
+    /// The name of the person who started the first thread.
     public var firstCommenter: String
+    /// The person who started the first thread, when known, for their shorthand.
+    public var startedBy: Person?
+
+    public init(threadIDs: [String], firstCommenter: String, startedBy: Person? = nil) {
+        self.threadIDs = threadIDs
+        self.firstCommenter = firstCommenter
+        self.startedBy = startedBy
+    }
 
     /// "1 thread · Ada Park", "2 threads · Ada Park".
-    public var label: String {
-        "\(threadIDs.count) \(threadIDs.count == 1 ? "thread" : "threads") · \(firstCommenter)"
+    public var label: String { label(using: .none) }
+
+    /// The label with the first commenter's shorthand, when they have one: "1 thread · Ada".
+    public func label(using shorthands: Shorthands) -> String {
+        let name = startedBy.map { shorthands.name(for: $0).text } ?? firstCommenter
+        return "\(threadIDs.count) \(threadIDs.count == 1 ? "thread" : "threads") · \(name)"
     }
 }
 
@@ -186,7 +198,8 @@ public struct DiffDocument: Sendable, Hashable {
         }
         func marker(_ found: [ReviewThread]?) -> DiffThreadMarker? {
             guard let found, let first = found.first else { return nil }
-            return DiffThreadMarker(threadIDs: found.map(\.id), firstCommenter: first.startedBy?.displayName ?? "Unknown")
+            return DiffThreadMarker(threadIDs: found.map(\.id), firstCommenter: first.startedBy?.displayName ?? "Unknown",
+                                    startedBy: first.startedBy)
         }
 
         var rows: [DiffRow] = []

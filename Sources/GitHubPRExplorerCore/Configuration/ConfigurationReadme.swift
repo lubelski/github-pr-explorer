@@ -29,6 +29,12 @@ enum ConfigurationReadme {
           - `watchedRepositories`: repositories, as `"owner/name"`, whose every open pull
             request is fetched, besides the ones that involve you.
           A key left out takes its default. A key the app does not know makes the file invalid.
+        - `shorthands.json`: short names drawn in place of repositories and people, so lists
+          are quicker to scan. `formatVersion` (`1`) and `shorthands`, a list such as
+          `{"kind": "repository", "for": "acme/web", "shorthand": "Web"}` or
+          `{"kind": "person", "for": "ada-park", "shorthand": "Ada"}`. Display only: titles,
+          comments, links and anything sent to GitHub are unchanged. Missing means none.
+          `github-pr-explorer-ctl shorthands set` and Settings, Shorthands write it.
         - `layouts/<id>.json`: your own page layouts, one per file, named after the layout's id.
           A layout has `formatVersion` (`1`), `id` (lowercase letters, digits and hyphens),
           `name`, and `tabs`. A tab has `name` and `columns`. A column has `width` (a number
@@ -40,7 +46,7 @@ enum ConfigurationReadme {
           `github-pr-explorer-ctl layouts duplicate tabbed my-layout`, or use Duplicate to Edit
           in Settings, Layouts.
 
-        The JSON Schemas for both are in the app's repository, under `schemas/`.
+        The JSON Schemas for each are in the app's repository, under `schemas/`.
 
         Pull request data fetched from GitHub is never kept here. It is a cache in the `index`
         folder next to this one, and deleting that folder is always safe.

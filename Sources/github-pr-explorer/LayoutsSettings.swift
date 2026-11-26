@@ -60,7 +60,7 @@ struct FolderLine: View {
         VStack(alignment: .leading, spacing: 8) {
             Text("Layouts are files in the configuration folder. A coding agent can edit them, and the app picks up a change as soon as it is saved.")
                 .fixedSize(horizontal: false, vertical: true)
-            Text(configuration.folder.path)
+            Text(configuration.displayPath)
                 .font(.callout.monospaced())
                 .foregroundStyle(.secondary)
                 .textSelection(.enabled)

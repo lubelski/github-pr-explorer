@@ -46,6 +46,19 @@ final class ConfigurationModel {
 
     var folder: URL { store.folder }
 
+    /// The folder as Settings shows it, with `~` for the home folder. A render sets it to the
+    /// app's own location, so an image never shows the temporary folder it was drawn from.
+    var displayPath: String {
+        get {
+            if let shownPath { return shownPath }
+            let home = FileManager.default.homeDirectoryForCurrentUser.path
+            let path = store.folder.path
+            return path.hasPrefix(home + "/") ? "~" + path.dropFirst(home.count) : path
+        }
+        set { shownPath = newValue }
+    }
+    @ObservationIgnored private var shownPath: String?
+
     /// Creates the folder on first run, reads it, records anything changed while the app was
     /// closed, and starts watching it.
     func start(watching: Bool = true) {

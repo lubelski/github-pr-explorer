@@ -70,19 +70,20 @@ enum SettingsPreviews {
     /// from Settings, one by hand and one from ctl.
     static func usedStore() -> ConfigurationStore {
         let store = store()
-        try? store.prepare(author: .app)
-        try? store.duplicateLayout(id: "tabbed", as: "review", name: "Review", author: .settingsWindow)
+        _ = try? store.prepare(author: .app)
+        _ = try? store.duplicateLayout(id: "tabbed", as: "review", name: "Review", author: .settingsWindow)
         write(triageLayout, "layouts/triage.json", in: store)
         store.reload(committingAs: .editedOnDisk)
-        try? store.set(key: "defaultLayout", value: "review", author: .commandLine)
-        try? store.set(key: "appearance", value: "dark", author: .settingsWindow)
-        try? store.set(key: "hidesBotEventsInActivity", value: "false", author: .settingsWindow)
+        _ = try? store.set(key: "defaultLayout", value: "review", author: .commandLine)
+        _ = try? store.set(key: "appearance", value: "dark", author: .settingsWindow)
+        _ = try? store.set(key: "hidesBotEventsInActivity", value: "false", author: .settingsWindow)
         return store
     }
 
     static func model(_ store: ConfigurationStore, configure: (ConfigurationModel) -> Void = { _ in }) -> ConfigurationModel {
         let model = ConfigurationModel(store: store, clock: { MockWorld.now.addingTimeInterval(-12 * 60) })
         model.start(watching: false)
+        model.displayPath = "~/Library/Application Support/github-pr-explorer/config"
         configure(model)
         return model
     }
@@ -97,7 +98,7 @@ enum SettingsPreviews {
         [
             State(name: "settings-general") {
                 let store = store()
-                try? store.prepare(author: .app)
+                _ = try? store.prepare(author: .app)
                 return window(model(store), .general)
             },
             State(name: "settings-general-broken-settings") {
@@ -107,7 +108,7 @@ enum SettingsPreviews {
             },
             State(name: "settings-layouts-built-in-only") {
                 let store = store()
-                try? store.prepare(author: .app)
+                _ = try? store.prepare(author: .app)
                 return window(model(store), .layouts)
             },
             State(name: "settings-layouts") {
@@ -127,7 +128,7 @@ enum SettingsPreviews {
                 let store = usedStore()
                 let versions = (try? store.versions()) ?? []
                 // Bring back the layouts as they were before the default changed, as a version.
-                if versions.count > 3 { try? store.restore(versions[3].id, file: "settings.json", author: .settingsWindow) }
+                if versions.count > 3 { _ = try? store.restore(versions[3].id, file: "settings.json", author: .settingsWindow) }
                 return window(model(store) { model in
                     model.selectedVersionID = model.versions.first { $0.summary.hasPrefix("Changed") || $0.summary.hasPrefix("Added") }?.id
                 }, .history)
@@ -141,7 +142,7 @@ enum SettingsPreviews {
             },
             State(name: "settings-experiments") {
                 let store = store()
-                try? store.prepare(author: .app)
+                _ = try? store.prepare(author: .app)
                 return window(model(store), .experiments)
             },
             // Taller than the window, to show the whole section.

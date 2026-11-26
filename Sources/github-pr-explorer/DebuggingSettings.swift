@@ -92,7 +92,7 @@ struct DiagnosticsReport {
                 Row(label: "Seen from", value: world.now.formatted(.iso8601)),
             ]),
             Group(title: "Configuration", rows: [
-                Row(label: "Folder", value: configuration.folder.path),
+                Row(label: "Folder", value: configuration.displayPath),
                 Row(label: "Watching for changes", value: configuration.isWatching ? "Yes" : "No"),
                 Row(label: "History", value: history),
                 Row(label: "Layouts", value: "\(builtIn) built in, \(fromFiles) from files"),

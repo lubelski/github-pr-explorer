@@ -96,10 +96,11 @@ The app creates it on first run. It holds:
 | File | What it holds |
 |---|---|
 | `settings.json` | `formatVersion` (always `1`), `appearance` (`system`, `light`, `dark`), `defaultLayout` (a layout id), `hidesBotEventsInActivity` (`true` or `false`), `updatesAutomatically` (`true` or `false`), and `experiments` (names to `true`; there are none right now, so `{}`). Only `formatVersion` is required: a key left out takes its default. |
+| `shorthands.json` | Short names drawn in place of repositories and people, such as `Web` for `acme/web`: `formatVersion` (`1`) and `shorthands`, a list of `{"kind": "repository" or "person", "for": "owner/name" or a login, "shorthand": "Web"}`. Display only. Missing means none. |
 | `layouts/<id>.json` | One page layout per file, named after its id. The format is the built-in layouts' format. A file with a built-in layout's id (`decision-first`, `tabbed`) replaces it. Copies of the built-in layouts are not written until you ask for one. |
 | `README.md` | The same explanation, for whoever opens the folder. |
 
-The JSON Schemas are [schemas/settings.schema.json](schemas/settings.schema.json) and [schemas/page-layout.schema.json](schemas/page-layout.schema.json). Every property is described there.
+The JSON Schemas are [schemas/settings.schema.json](schemas/settings.schema.json), [schemas/shorthands.schema.json](schemas/shorthands.schema.json) and [schemas/page-layout.schema.json](schemas/page-layout.schema.json). Every property is described there.
 
 A file that does not validate is never applied. The app keeps using the last version of it that worked and shows the problem, with the file, where in it, and what is wrong, in Settings and in `config validate`. A key the format does not have counts as a problem, so a misspelled setting is reported instead of ignored.
 
@@ -120,6 +121,10 @@ github-pr-explorer-ctl config history --limit 10        # id, time (UTC), who, w
 github-pr-explorer-ctl config diff 1a2b3c4              # what a version changed
 github-pr-explorer-ctl config restore 1a2b3c4           # the whole folder as it was then
 github-pr-explorer-ctl config restore 1a2b3c4 settings.json   # one file
+github-pr-explorer-ctl shorthands list                  # every shorthand, and any two that share one
+github-pr-explorer-ctl shorthands set repository acme/web Web
+github-pr-explorer-ctl shorthands set person ada-park Ada
+github-pr-explorer-ctl shorthands remove person ada-park
 github-pr-explorer-ctl layouts list
 github-pr-explorer-ctl layouts show tabbed --json
 github-pr-explorer-ctl layouts duplicate tabbed my-layout --name "My layout"

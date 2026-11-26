@@ -2,7 +2,7 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after the first read-only sync from GitHub (MAC-59).
+Last updated 2026-11-25, after shorthands (MAC-73).
 
 ## Where we are
 
@@ -19,6 +19,8 @@ The owner's first look at the window brought small changes (MAC-55): the app's n
 Configuration has started (MAC-56, the first step of MAC-40). Settings live as JSON files in a configuration folder that the app watches and keeps in git, the Settings window writes those files, and `github-pr-explorer-ctl config` and `layouts` read and change them. Answers 11 and 12 below were built as defaults. Still to come for MAC-40: views, layout rules, and teams' facts and actions as files, MCP, and the command line's filter, rule and action commands.
 
 Real pull requests can be read (MAC-59), behind a setting that is off by default. `pullRequestSource` in `settings.json` is `mock` or `github`. With `github`, `GitHubSync` in the core library, the only part that uses the network, reads open pull requests that involve the signed-in person, and every open one in the watched repositories, through the `gh` login. It fetches in tiers: a light list pass on a timer, then detail, computed fields in small batches, and per-file patches from REST for pull requests that are new, changed, or opened. It is read-only and keeps to half of each hourly rate limit. The index is saved as one JSON file beside the configuration folder, the window opens on it before the first fetch returns, and the title bar says plainly when `gh` is missing, signed out, offline or rate limited. Settings has a GitHub section, and `ctl sync run`, `sync check` and `sync status` do the same from the command line. One real sync of 32 pull requests took 67 requests and about 39 seconds, and a sync with nothing changed took 10 requests. Still to come: the probes below, a database in place of the JSON file, push, and actions.
+
+Shorthands are built (MAC-73): short names the person sets for repositories and people, such as Web for `acme/web`, drawn in place of the full name everywhere the app labels one, with the full name on hover. They live in `shorthands.json`, Settings has a Shorthands section, and `ctl shorthands` lists, sets and removes them. With none set the app looks as it did. The choices made on the owner's behalf are in `planning/decided.md` for him to overrule. MCP for shorthands waits with MCP for every other setting.
 
 ## What the research says
 

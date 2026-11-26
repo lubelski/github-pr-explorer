@@ -4,7 +4,8 @@ import SwiftUI
 /// Quiet status at the right end of the title bar, right-aligned, in this order: in GitHub
 /// mode, the sync's state when it is syncing, has a problem, or no pull request is open; how
 /// fresh the selected pull request is; a warning when a layout file could not be read; the
-/// version and commit; an update indicator when an update waits; and the layout menu last.
+/// version and commit; an update indicator when an update waits; and the window's menu last,
+/// a cog that holds the layouts, Sync Now, Settings and Check for Updates.
 ///
 /// It is hosted in the title bar by `standardTitleBar(trailing:)`, outside the window's own
 /// SwiftUI tree, so it gets nothing from the window's environment. What it needs is passed in.
@@ -13,6 +14,9 @@ struct TitleBarStatus: View {
     var updater: AppUpdater
     /// A narrow window: the update indicator shows its symbol only.
     var compact = false
+    /// Opens the Settings window. The title bar sits outside the window's SwiftUI tree, so it
+    /// cannot read `openSettings` itself and the window passes it in.
+    var openSettings: () -> Void = {}
 
     var body: some View {
         HStack(spacing: 6) {
@@ -40,8 +44,8 @@ struct TitleBarStatus: View {
             if let pending = updater.pending {
                 updateIndicator(pending)
             }
-            layoutMenu
-                .padding(.leading, 6)
+            windowMenu
+                .padding(.leading, 4)
         }
         .font(Style.secondary)
         .foregroundStyle(.secondary)
@@ -97,25 +101,36 @@ struct TitleBarStatus: View {
         Text(verbatim: "·").foregroundStyle(.tertiary)
     }
 
-    /// The current layout's name, and a menu of the layouts.
-    private var layoutMenu: some View {
+    /// A cog with the window's menu. Layout is a submenu with the current layout checked. Sync
+    /// Now is there only to be meaningful in GitHub mode, and is turned off otherwise. Settings
+    /// and Check for Updates do what the app menu's items do.
+    private var windowMenu: some View {
         Menu {
-            Picker("Layout", selection: $model.layoutID) {
+            Picker(selection: $model.layoutID) {
                 ForEach(model.library.layouts) { layout in
                     Text(layout.name).tag(layout.id)
                 }
+            } label: {
+                Label("Layout", systemImage: "rectangle.3.group")
             }
-            .pickerStyle(.inline)
-            .labelsHidden()
+            .pickerStyle(.menu)
+            Divider()
+            Button("Sync Now", systemImage: "arrow.triangle.2.circlepath") { model.syncNow() }
+                .disabled(!model.canSyncNow)
+            Divider()
+            Button("Settings\u{2026}", systemImage: "gearshape") { openSettings() }
+            Button(AppUpdater.checkTitle, systemImage: "arrow.down.circle") { updater.checkForUpdates() }
+                .disabled(!updater.isAvailable || !updater.canCheck)
         } label: {
-            Label(model.layout.name, systemImage: "rectangle.3.group")
-                .labelStyle(.titleAndIcon)
+            Image(systemName: "gearshape")
+                .accessibilityLabel("Window menu")
         }
         .menuStyle(.button)
         .buttonStyle(.borderless)
+        .menuIndicator(.visible)
         .controlSize(.small)
         .fixedSize()
-        .help("Layout: \(model.layout.name)")
+        .help("Layout: \(model.layout.name). Sync, Settings and updates.")
     }
 }
 

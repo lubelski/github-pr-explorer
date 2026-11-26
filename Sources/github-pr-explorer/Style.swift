@@ -159,3 +159,35 @@ extension EnvironmentValues {
     /// Whether Activity starts with bot events folded away. The setting is in `settings.json`.
     @Entry var hidesBotEventsInActivity = true
 }
+
+extension StatusSentence.Badge.Tone {
+    var color: Color {
+        switch self {
+        case .positive: .green
+        case .negative: .red
+        case .progress: .blue
+        case .attention: .orange
+        case .neutral: .secondary
+        case .done: .purple
+        }
+    }
+}
+
+/// A status's short label in a small filled capsule of its tone's color, such as "Blocked" in
+/// red. The words carry the meaning, so color is never the only sign.
+struct StatusBadge: View {
+    let badge: StatusSentence.Badge
+
+    var body: some View {
+        let color = badge.tone.color
+        Text(badge.label)
+            .font(.system(size: 10.5, weight: .semibold))
+            .foregroundStyle(color)
+            .lineLimit(1)
+            .fixedSize()
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(color.opacity(badge.tone == .neutral ? 0.12 : 0.15)))
+            .help(badge.name)
+    }
+}

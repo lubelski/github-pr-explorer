@@ -192,6 +192,42 @@ enum PreviewRenderer {
                 model.searchText = "no such words anywhere"
                 return model
             },
+            // The list's filters (MAC-69): two facets on, one that leaves nothing, drafts only,
+            // and filters at the narrowest list. The menus themselves cannot be drawn offscreen.
+            State(name: "list-filter-repository-and-status") {
+                let model = model(example)
+                model.listView = .everythingOpen
+                model.listFilter = ListFilter(repositories: [MockCast.api], statuses: [.blocked, .running])
+                return model
+            },
+            State(name: "list-filter-no-matches") {
+                let model = model(example)
+                model.listView = .mine
+                model.listFilter = ListFilter(authors: [MockCast.adaPark.login])
+                return model
+            },
+            State(name: "list-filter-drafts-only") {
+                let model = model(example)
+                model.listView = .everythingOpen
+                model.listFilter = ListFilter(drafts: .only)
+                return model
+            },
+            State(name: "list-filter-narrowest") {
+                let model = model(example)
+                model.listWidth = AppModel.listWidthRange.lowerBound
+                model.listFilter = ListFilter(repositories: [MockCast.api, MockCast.web], authors: [MockCast.adaPark.login],
+                                              reviewStates: [.reviewRequired])
+                return model
+            },
+            // A repository name far longer than the mock world's, made up here and marked as
+            // mock data, to show it gives way before the number does.
+            State(name: "list-long-repository-name") {
+                let long = longRepositoryPullRequests(from: index, now: world.now)
+                let longIndex = InMemoryPullRequestIndex(pullRequests: long + world.pullRequests, viewer: world.viewer)
+                let model = model(long.first?.reference, index: longIndex)
+                model.listView = .everythingOpen
+                return model
+            },
             State(name: "list-narrowest") {
                 let model = model(example)
                 model.listWidth = AppModel.listWidthRange.lowerBound
@@ -330,6 +366,22 @@ enum PreviewRenderer {
             return model(empty.reference, layout: "catalogue", library: catalogueLibrary, index: emptyIndex)
         })
         return states
+    }
+
+    /// Copies of two open pull requests in a repository with a very long name, one written by
+    /// the viewer. Their provenance says `mock`: they are made up for this preview.
+    private static func longRepositoryPullRequests(from index: any PullRequestIndex, now: Date) -> [PullRequest] {
+        let open = index.allPullRequests.filter { $0.state == .open && !$0.isDraft }
+        let picks = [open.first, open.first { index.viewer.isViewer($0.author) }].compactMap { $0 }
+        return picks.enumerated().map { offset, pr in
+            var copy = pr
+            copy.id = "PR_preview_long_repository_\(offset)"
+            copy.repository = Repository(owner: "acme", name: "payments-platform-reconciliation-service")
+            copy.number = 10_482 + offset
+            copy.updatedAt = now.addingTimeInterval(Double(-offset))
+            copy.provenance = .uniform(.mock, fetchedAt: now)
+            return copy
+        }
     }
 
     /// A pull request with an empty body, no checks, reviewers, files, threads, commits or

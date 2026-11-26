@@ -19,12 +19,18 @@ final class AppModel {
     /// Told when the selection changes, so the sync can fetch that pull request sooner. It is
     /// a request to the sync, never a fetch.
     @ObservationIgnored var onSelect: ((PullRequest.ID) -> Void)?
+    /// Told when the person picks Sync Now. Set only by the app, so renders never sync.
+    @ObservationIgnored var onSyncNow: (() -> Void)?
     /// The layouts the layout menu offers: the built-in ones and the configuration folder's.
     var library: LayoutLibrary
     /// Whether Activity starts with bot events folded away, from `settings.json`.
     var hidesBotEventsInActivity = true
 
     var searchText = ""
+    /// The list's advanced filters. They narrow the chosen view together with the search.
+    /// Like the search, they are not remembered across launches: a filter worth keeping is a
+    /// saved view, which the filter language will bring.
+    var listFilter = ListFilter.none
     /// The pull request shown. Choosing another closes its panes: they belong to the pull
     /// request they were opened on.
     var selection: PullRequest.ID? {
@@ -75,19 +81,37 @@ final class AppModel {
         self.selection = selection.flatMap { index.pullRequest($0)?.id } ?? index.allPullRequests.first { $0.state == .open }?.id
     }
 
-    /// The pull requests in the chosen view that match the search, most recently updated first.
+    /// The pull requests in the chosen view that match the search and the filters, most
+    /// recently updated first.
     var listedPullRequests: [PullRequest] {
-        listView.pullRequests(in: index.search(searchText), viewer: index.viewer)
+        listView.pullRequests(in: searchedAndFiltered, viewer: index.viewer)
     }
 
-    /// How many pull requests each view holds, within the search.
+    /// How many pull requests each view holds, within the search and the filters, so a view's
+    /// count is always the number of rows choosing it would show.
     var countsByView: [FixedListView: Int] {
-        let found = index.search(searchText)
+        let found = searchedAndFiltered
         let viewer = index.viewer
         return Dictionary(uniqueKeysWithValues: FixedListView.allCases.map { view in
             (view, found.count { view.includes($0, viewer: viewer) })
         })
     }
+
+    private var searchedAndFiltered: [PullRequest] {
+        listFilter.pullRequests(in: index.search(searchText), status: status(for:))
+    }
+
+    /// What the filter menu offers: the repositories, authors, statuses and review states of
+    /// the open pull requests in the index, and whatever the filters already hold.
+    var filterChoices: ListFilterChoices {
+        ListFilterChoices(pullRequests: index.allPullRequests.filter { $0.state == .open }, viewer: index.viewer,
+                          status: status(for:), keeping: listFilter)
+    }
+
+    /// Whether Sync Now means anything: only when pull requests come from GitHub.
+    var canSyncNow: Bool { syncSummary != nil }
+
+    func syncNow() { onSyncNow?() }
 
     // MARK: List width
 

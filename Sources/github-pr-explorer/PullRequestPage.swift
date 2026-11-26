@@ -104,11 +104,6 @@ struct PageHeader: View {
         HStack(alignment: .top, spacing: 24) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    if !model.showsList {
-                        Button { model.showsList = true } label: { Image(systemName: "sidebar.left") }
-                            .buttonStyle(.borderless)
-                            .help("Show the pull request list")
-                    }
                     Text(verbatim: "\(pr.repository.fullName) #\(pr.number)")
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)

@@ -17,6 +17,8 @@ enum PreviewRenderer {
         let name: String
         var size = CGSize(width: 1560, height: 940)
         var expandsBlocks = false
+        /// A selection drawn in the Description, to show it crossing blocks.
+        var markdownSelection = MarkdownPreviewSelection.none
         /// An update the title bar shows as waiting. Renders have no feed, so by default none.
         var pendingUpdate: AppUpdates.Pending?
         let model: () -> AppModel
@@ -117,7 +119,8 @@ enum PreviewRenderer {
         let window = states().map { state in
             SettingsPreviews.State(name: state.name, size: state.size) {
                 AnyView(MainWindowView(model: state.model(), updater: updater(for: state))
-                    .environment(\.previewExpandsBlocks, state.expandsBlocks))
+                    .environment(\.previewExpandsBlocks, state.expandsBlocks)
+                    .environment(\.previewMarkdownSelection, state.markdownSelection))
             }
         }
         let configured = SettingsPreviews.mainWindowStates { snapshot in
@@ -168,6 +171,12 @@ enum PreviewRenderer {
                 model(first { $0.timeline.count >= 250 }, layout: "tabbed", tab: 0)
             },
             State(name: "page-rich-body") { model(first { $0.body.contains("<details>") }) },
+            // A selection from a paragraph, across the table, the lists and the code, into a
+            // numbered list, and Select All. Each prints what Copy gives (MAC-72).
+            State(name: "page-rich-body-selection-spanning", markdownSelection: .spanning) {
+                model(first { $0.body.contains("<details>") })
+            },
+            State(name: "page-rich-body-select-all", markdownSelection: .all) { model(first { $0.body.contains("<details>") }) },
             State(name: "page-no-checks-no-reviewers") {
                 model(first { $0.checks.isEmpty && $0.reviewRequests.isEmpty && $0.reviews.isEmpty })
             },

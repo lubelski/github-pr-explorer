@@ -112,7 +112,7 @@ enum PreviewRenderer {
         let open = world.pullRequests.filter { $0.state == .open }
         func model(_ reference: PullRequestReference?, layout: String = LayoutLibrary.fallbackID, tab: Int = 0,
                    library: LayoutLibrary = .builtIn(), index: any PullRequestIndex = index) -> AppModel {
-            let model = AppModel(index: index, now: world.now, library: library, selection: reference)
+            let model = AppModel(index: index, now: world.now, library: library, selection: reference, build: .preview)
             model.layoutID = layout
             model.selectedTab = tab
             return model
@@ -154,6 +154,40 @@ enum PreviewRenderer {
                 model.searchText = "session refresh"
                 return model
             },
+            State(name: "list-view-mine") {
+                let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
+                model.listView = .mine
+                return model
+            },
+            State(name: "list-view-everything-open") {
+                let model = model(example)
+                model.listView = .everythingOpen
+                return model
+            },
+            State(name: "list-view-empty-search") {
+                let model = model(example)
+                model.listView = .mine
+                model.searchText = "no such words anywhere"
+                return model
+            },
+            State(name: "list-narrowest") {
+                let model = model(example)
+                model.listWidth = AppModel.listWidthRange.lowerBound
+                return model
+            },
+            State(name: "list-widest") {
+                let model = model(example)
+                model.listWidth = AppModel.listWidthRange.upperBound
+                return model
+            },
+            // The smallest window the app allows, to check the title bar's status does not run
+            // into the centered name and the page header fits beside the widest list.
+            State(name: "window-smallest-list-widest", size: CGSize(width: 900, height: 560)) {
+                let model = model(example)
+                model.listWidth = AppModel.listWidthRange.upperBound
+                return model
+            },
+            State(name: "window-smallest", size: CGSize(width: 900, height: 560)) { model(example) },
             State(name: "list-hidden") {
                 let model = model(example)
                 model.showsList = false

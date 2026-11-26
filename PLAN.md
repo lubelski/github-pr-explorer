@@ -12,6 +12,8 @@ The first window is built on the mock world (MAC-46): the open pull requests in 
 
 Design row 8 is built for trial (MAC-53): selecting a file in the Files block slides the diff in as a pane over the page's blocks, with a file tree, inline and side by side modes, and a review thread as a second pane over the diff. It is the first answer to open question 4 to try in the app. Reply and Resolve do nothing yet.
 
+The owner's first look at the window brought small changes (MAC-55): the app's name shows once, centered; freshness, the version and commit, and the layout menu sit at the right end of the title bar; the footer is gone; the list's width can be dragged; and a row above the list picks one of three fixed views, "Needs my review", "Mine" and "Everything open". The views are plain predicates until the filter language exists.
+
 ## What the research says
 
 Both files were written by research agents on 2026-11-25. Each keeps what it checked apart from what it only read. Nobody has re-checked them yet.

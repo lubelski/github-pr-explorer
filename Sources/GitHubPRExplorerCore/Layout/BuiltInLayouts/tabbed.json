@@ -1,0 +1,79 @@
+{
+  "formatVersion" : 1,
+  "id" : "tabbed",
+  "name" : "Tabbed",
+  "tabs" : [
+    {
+      "columns" : [
+        {
+          "blocks" : [
+            {
+              "kind" : "description",
+              "size" : "large"
+            },
+            {
+              "kind" : "reviewers",
+              "size" : "large"
+            },
+            {
+              "kind" : "ownersTouched",
+              "size" : "large"
+            },
+            {
+              "kind" : "activity",
+              "size" : "large"
+            }
+          ],
+          "width" : 1
+        }
+      ],
+      "name" : "Overview"
+    },
+    {
+      "columns" : [
+        {
+          "blocks" : [
+            {
+              "kind" : "files",
+              "size" : "large"
+            },
+            {
+              "kind" : "commits",
+              "size" : "large"
+            }
+          ],
+          "width" : 1
+        }
+      ],
+      "name" : "Files"
+    },
+    {
+      "columns" : [
+        {
+          "blocks" : [
+            {
+              "kind" : "checks",
+              "size" : "large"
+            }
+          ],
+          "width" : 1
+        }
+      ],
+      "name" : "Checks"
+    },
+    {
+      "columns" : [
+        {
+          "blocks" : [
+            {
+              "kind" : "threads",
+              "size" : "large"
+            }
+          ],
+          "width" : 1
+        }
+      ],
+      "name" : "Threads"
+    }
+  ]
+}

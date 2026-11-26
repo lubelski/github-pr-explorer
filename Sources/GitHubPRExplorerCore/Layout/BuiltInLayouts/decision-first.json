@@ -1,0 +1,50 @@
+{
+  "formatVersion" : 1,
+  "id" : "decision-first",
+  "name" : "Decision first",
+  "tabs" : [
+    {
+      "columns" : [
+        {
+          "blocks" : [
+            {
+              "kind" : "description",
+              "size" : "large"
+            },
+            {
+              "kind" : "threads",
+              "size" : "large"
+            },
+            {
+              "kind" : "files",
+              "size" : "large"
+            }
+          ],
+          "width" : 1.85
+        },
+        {
+          "blocks" : [
+            {
+              "kind" : "checks",
+              "size" : "large"
+            },
+            {
+              "kind" : "reviewers",
+              "size" : "large"
+            },
+            {
+              "kind" : "ownersTouched",
+              "size" : "large"
+            },
+            {
+              "kind" : "activity",
+              "size" : "large"
+            }
+          ],
+          "width" : 1
+        }
+      ],
+      "name" : "Pull request"
+    }
+  ]
+}

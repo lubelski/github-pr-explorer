@@ -26,6 +26,8 @@ public actor GitHubSync {
     public struct Update: Sendable {
         public var index: InMemoryPullRequestIndex
         public var status: GitHubSyncStatus
+        /// Counts up with every update, so a receiver that hops threads can drop a late one.
+        public var sequence: Int
     }
 
     // Tiers and budget. Small batches for computed fields, after the research.
@@ -51,7 +53,7 @@ public actor GitHubSync {
     private let tokenProvider: any GitHubTokenProvider
     private let storage: any GitHubIndexStorage
     private let now: @Sendable () -> Date
-    private let onUpdate: @Sendable (Update) -> Void
+    private var onUpdate: @Sendable (Update) -> Void
 
     private var snapshot: GitHubIndexSnapshot
     private var watchedRepositories: [Repository] = []
@@ -60,6 +62,7 @@ public actor GitHubSync {
     private var isRunning = false
     private var nextFullRunAt: Date?
     private var runCounts = GitHubRequestCounts()
+    private var sequence = 0
     /// Points spent by this sync in each limit's current window, by resource.
     private var spent: [String: (resetAt: Date, points: Int)] = [:]
 
@@ -74,6 +77,11 @@ public actor GitHubSync {
         self.now = now
         self.onUpdate = onUpdate
         self.snapshot = GitHubIndexSnapshot(savedAt: now())
+    }
+
+    /// Who hears about every change to the index and the status.
+    public func setUpdateHandler(_ handler: @escaping @Sendable (Update) -> Void) {
+        onUpdate = handler
     }
 
     // MARK: Reading what is known
@@ -213,7 +221,8 @@ public actor GitHubSync {
 
     private func publish() {
         countPullRequests()
-        onUpdate(Update(index: snapshot.index, status: snapshot.status))
+        sequence += 1
+        onUpdate(Update(index: snapshot.index, status: snapshot.status, sequence: sequence))
     }
 
     private func save() {

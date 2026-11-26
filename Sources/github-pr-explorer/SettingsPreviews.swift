@@ -88,8 +88,14 @@ enum SettingsPreviews {
         return model
     }
 
-    static func window(_ model: ConfigurationModel, _ section: SettingsSection) -> AnyView {
-        let context = SettingsContext(build: .preview, world: .standard, updater: .unavailable())
+    /// A sync for renders: a fixed status, never a sync, never the network.
+    static func previewSync(_ status: GitHubSyncStatus? = nil, ghPath: String? = "/opt/homebrew/bin/gh",
+                            source: PullRequestSource = .mock) -> SyncModel {
+        SyncModel(previewStatus: status, ghPath: ghPath, source: source, now: MockWorld.now)
+    }
+
+    static func window(_ model: ConfigurationModel, _ section: SettingsSection, sync: SyncModel = previewSync()) -> AnyView {
+        let context = SettingsContext(build: .preview, world: .standard, updater: .unavailable(), sync: sync)
         return AnyView(SettingsRootView(configuration: model, context: context, renderedSection: section)
             .environment(\.historyNow, MockWorld.now))
     }
@@ -140,6 +146,36 @@ enum SettingsPreviews {
                 let store = store(gitPath: "/nonexistent/git")
                 return window(model(store), .history)
             },
+            // The GitHub section (MAC-59), with a made-up sync status and placeholder names.
+            State(name: "settings-github-mock") {
+                let store = store()
+                _ = try? store.prepare(author: .app)
+                var status = GitHubSyncStatus()
+                status.hasLogin = true
+                status.accountLogin = "robin-quill"
+                return window(model(store), .github, sync: previewSync(status))
+            },
+            State(name: "settings-github-on", size: CGSize(width: 900, height: 900)) {
+                let store = store()
+                _ = try? store.set(key: "pullRequestSource", value: "github", author: .settingsWindow)
+                _ = try? store.set(key: "watchedRepositories", value: "acme/api,acme/web", author: .settingsWindow)
+                return window(model(store), .github, sync: previewSync(Self.syncedStatus, source: .github))
+            },
+            State(name: "settings-github-gh-missing", size: CGSize(width: 900, height: 900)) {
+                let store = store()
+                _ = try? store.set(key: "pullRequestSource", value: "github", author: .settingsWindow)
+                var status = GitHubSyncStatus()
+                status.hasLogin = false
+                status.problem = .ghMissing
+                return window(model(store), .github, sync: previewSync(status, ghPath: nil, source: .github))
+            },
+            State(name: "settings-github-rate-limited", size: CGSize(width: 900, height: 900)) {
+                let store = store()
+                _ = try? store.set(key: "pullRequestSource", value: "github", author: .settingsWindow)
+                var status = Self.syncedStatus
+                status.problem = .rateLimited(until: MockWorld.now.addingTimeInterval(38 * 60))
+                return window(model(store), .github, sync: previewSync(status, source: .github))
+            },
             State(name: "settings-experiments") {
                 let store = store()
                 _ = try? store.prepare(author: .app)
@@ -157,6 +193,21 @@ enum SettingsPreviews {
                 return window(model, .debugging)
             },
         ]
+    }
+
+    /// A sync that has run a while, with placeholder counts.
+    static var syncedStatus: GitHubSyncStatus {
+        var status = GitHubSyncStatus()
+        status.hasLogin = true
+        status.accountLogin = "robin-quill"
+        status.lastSuccessAt = MockWorld.now.addingTimeInterval(-4 * 60)
+        status.pullRequestCount = 42
+        status.detailedCount = 40
+        status.rateLimits["graphql"] = RateLimitReading(resource: "graphql", limit: 5000, remaining: 4870,
+                                                        resetAt: MockWorld.now.addingTimeInterval(40 * 60), readAt: MockWorld.now)
+        status.rateLimits["core"] = RateLimitReading(resource: "core", limit: 5000, remaining: 4931,
+                                                     resetAt: MockWorld.now.addingTimeInterval(22 * 60), readAt: MockWorld.now)
+        return status
     }
 
     /// The main window after `settings.json` was changed: the default layout and the bot

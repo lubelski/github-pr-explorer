@@ -144,6 +144,21 @@ final class ConfigurationModel {
         change { try store.set(key: "updatesAutomatically", value: String(on), author: .settingsWindow) }
     }
 
+    func setPullRequestSource(_ source: PullRequestSource) {
+        guard source != snapshot.settings.pullRequestSource else { return }
+        change { try store.set(key: "pullRequestSource", value: source.rawValue, author: .settingsWindow) }
+    }
+
+    func setSyncInterval(_ seconds: Int) {
+        guard seconds != snapshot.settings.syncIntervalSeconds else { return }
+        change { try store.set(key: "syncIntervalSeconds", value: String(seconds), author: .settingsWindow) }
+    }
+
+    func setWatchedRepositories(_ names: [String]) {
+        guard names != snapshot.settings.watchedRepositories else { return }
+        change { try store.set(key: "watchedRepositories", value: names.joined(separator: ","), author: .settingsWindow) }
+    }
+
     func setExperiment(_ experiment: Experiment, on: Bool) {
         change { try store.set(key: "experiments.\(experiment.key)", value: String(on), author: .settingsWindow) }
     }

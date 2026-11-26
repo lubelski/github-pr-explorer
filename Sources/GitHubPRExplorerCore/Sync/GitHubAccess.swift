@@ -47,18 +47,21 @@ public enum GitHubCLILocator {
 
 /// Gets the token from the `gh` login on this Mac by running `gh auth token`.
 public struct GitHubCLITokenProvider: GitHubTokenProvider {
+    /// The `gh` to run. Nil looks for it each time, so installing it later is noticed.
     public let executable: URL?
 
-    public init(executable: URL? = GitHubCLILocator.find()) {
+    public init(executable: URL? = nil) {
         self.executable = executable
     }
 
+    private var found: URL? { executable ?? GitHubCLILocator.find() }
+
     public var sourceDescription: String {
-        executable.map { "gh login (\($0.path))" } ?? "gh login (gh not found)"
+        found.map { "gh login (\($0.path))" } ?? "gh login (gh not found)"
     }
 
     public func token() async throws(GitHubAccessError) -> String {
-        guard let executable else { throw .ghMissing }
+        guard let executable = found else { throw .ghMissing }
         let result: (status: Int32, output: String, error: String)
         do {
             result = try await Self.run(executable, arguments: ["auth", "token", "--hostname", "github.com"])

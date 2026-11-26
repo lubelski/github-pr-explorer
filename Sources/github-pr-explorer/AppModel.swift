@@ -5,14 +5,20 @@ import Observation
 /// What the main window shows: which pull request, which layout and tab, and the search.
 ///
 /// It reads everything from the index it is given. Nothing here builds data or touches the
-/// network.
+/// network. In GitHub mode `SyncModel` hands it a new index whenever the sync changes one.
 @MainActor
 @Observable
 final class AppModel {
-    let index: any PullRequestIndex
+    private(set) var index: any PullRequestIndex
     /// The clock every age and running time is measured from. The mock world is seen from a
     /// fixed moment, so the app uses that moment and renders stay the same from run to run.
-    let now: Date
+    /// In GitHub mode it is the real time, moved on by `SyncModel`.
+    private(set) var now: Date
+    /// The sync's status for the title bar. Nil in mock mode, where the title bar is as it was.
+    var syncSummary: SyncStatusSummary?
+    /// Told when the selection changes, so the sync can fetch that pull request sooner. It is
+    /// a request to the sync, never a fetch.
+    @ObservationIgnored var onSelect: ((PullRequest.ID) -> Void)?
     /// The layouts the layout menu offers: the built-in ones and the configuration folder's.
     var library: LayoutLibrary
     /// Whether Activity starts with bot events folded away, from `settings.json`.
@@ -22,7 +28,10 @@ final class AppModel {
     /// The pull request shown. Choosing another closes its panes: they belong to the pull
     /// request they were opened on.
     var selection: PullRequest.ID? {
-        didSet { if selection != oldValue { panePath = PaneStackPath() } }
+        didSet {
+            if selection != oldValue { panePath = PaneStackPath() }
+            if let selection, selection != oldValue { onSelect?(selection) }
+        }
     }
     /// The panes open over the page: a file's diff, then a thread. See `PullRequestPane`.
     var panePath = PaneStackPath()
@@ -127,6 +136,44 @@ final class AppModel {
         let defaultID = configuration.defaultLayout.id
         if previous == nil || previous?.defaultLayout.id != defaultID {
             layoutID = defaultID
+        }
+    }
+
+    // MARK: Where the index comes from
+
+    /// Shows the mock world, as the app did before there was a sync.
+    func showMock() {
+        replaceIndex(MockWorld.standard.index, now: MockWorld.now)
+        syncSummary = nil
+        selection = MockWorld.standard.index.pullRequest(MockWorld.workedExample)?.id ?? selection
+    }
+
+    /// Shows an index from the sync. The open page stays open when its pull request is still
+    /// there, and its panes stay open when its files did not change.
+    func showGitHub(index: any PullRequestIndex, now: Date, summary: SyncStatusSummary?) {
+        replaceIndex(index, now: now)
+        syncSummary = summary
+        if selection.flatMap(index.pullRequest(id:)) == nil {
+            selection = listedPullRequests.first?.id ?? index.allPullRequests.first { $0.state == .open }?.id
+        }
+    }
+
+    /// Moves the clock on, so ages read right while nothing new is synced.
+    func setNow(_ now: Date, summary: SyncStatusSummary?) {
+        self.now = now
+        statusByID = [:]
+        syncSummary = summary
+    }
+
+    private func replaceIndex(_ new: any PullRequestIndex, now: Date) {
+        let old = index
+        index = new
+        self.now = now
+        statusByID = [:]
+        // A diff document is kept only while its file's patch is unchanged.
+        diffDocuments = diffDocuments.filter { key, _ in
+            guard let id = key.split(separator: "|", maxSplits: 1).first.map(String.init) else { return false }
+            return old.pullRequest(id: id)?.files == new.pullRequest(id: id)?.files
         }
     }
 

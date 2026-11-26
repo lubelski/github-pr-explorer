@@ -1,9 +1,10 @@
 import GitHubPRExplorerCore
 import SwiftUI
 
-/// Quiet status at the right end of the title bar, right-aligned, in this order: how fresh the
-/// selected pull request is, a warning when a layout file could not be read, the version and
-/// commit, an update indicator when an update waits, and the layout menu last.
+/// Quiet status at the right end of the title bar, right-aligned, in this order: in GitHub
+/// mode, the sync's state when it is syncing, has a problem, or no pull request is open; how
+/// fresh the selected pull request is; a warning when a layout file could not be read; the
+/// version and commit; an update indicator when an update waits; and the layout menu last.
 ///
 /// It is hosted in the title bar by `standardTitleBar(trailing:)`, outside the window's own
 /// SwiftUI tree, so it gets nothing from the window's environment. What it needs is passed in.
@@ -15,6 +16,11 @@ struct TitleBarStatus: View {
 
     var body: some View {
         HStack(spacing: 6) {
+            if let summary = model.syncSummary,
+               summary.isProblem || model.selectedPullRequest == nil || summary.text == "Syncing…" {
+                syncLabel(summary)
+                separator
+            }
             if let pr = model.selectedPullRequest {
                 let freshness = Freshness(provenance: pr.provenance, now: model.now)
                 Text(freshness.summary)
@@ -41,6 +47,28 @@ struct TitleBarStatus: View {
         .foregroundStyle(.secondary)
         .lineLimit(1)
         .fixedSize()
+    }
+
+    /// The sync's state. A problem is orange with a warning sign, and its tooltip says what is
+    /// wrong, what to do, and how old the data on screen is.
+    /// In a narrow window it shows only a symbol, with the words in its tooltip, so it does not
+    /// run into the centered name.
+    @ViewBuilder private func syncLabel(_ summary: SyncStatusSummary) -> some View {
+        let help = summary.text + "\n" + summary.help
+        if summary.isProblem {
+            Label(summary.text, systemImage: "exclamationmark.triangle")
+                .labelStyle(compact ? AnyLabelStyle(.iconOnly) : AnyLabelStyle(.titleAndIcon))
+                .foregroundStyle(.orange)
+                .help(help)
+                .accessibilityLabel(summary.text)
+        } else if compact {
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .help(help)
+                .accessibilityLabel(summary.text)
+        } else {
+            Text(summary.text)
+                .help(help)
+        }
     }
 
     /// A small button that offers the waiting update. It shows only while one waits.
@@ -89,4 +117,11 @@ struct TitleBarStatus: View {
         .fixedSize()
         .help("Layout: \(model.layout.name)")
     }
+}
+
+/// A label style chosen at run time.
+struct AnyLabelStyle: LabelStyle {
+    private let make: (Configuration) -> AnyView
+    init<Style: LabelStyle>(_ style: Style) { make = { AnyView(style.makeBody(configuration: $0)) } }
+    func makeBody(configuration: Configuration) -> some View { make(configuration) }
 }

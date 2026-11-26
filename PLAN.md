@@ -8,7 +8,11 @@ Last updated 2026-11-25, after the Settings window and the configuration folder.
 
 Phase 0, with the first code in. The vision is drafted and waiting for the owner, the design rows in Figma are waiting for the owner, and two research files are in `planning/research/`. The core library, a large deterministic mock world of 298 placeholder pull requests, and `github-pr-explorer-ctl` are built and tested, so views can be built with no network and no sign-in.
 
-The first window is built on the mock world (MAC-46): the open pull requests in a searchable list, and the page drawn as blocks from a layout document, with "Decision first" and "Tabbed" built in. It is for the owner to judge rows 1 and 2 as a running app. The actions do nothing yet, the header is fixed above the tabs, and there is no sync, Edit Layout, layout rules, or diff. The icon, Sparkle, and releases are MAC-47.
+The first window is built on the mock world (MAC-46): the open pull requests in a searchable list, and the page drawn as blocks from a layout document, with "Decision first" and "Tabbed" built in. It is for the owner to judge rows 1 and 2 as a running app. The actions do nothing yet, the header is fixed above the tabs, and there is no sync, Edit Layout, or layout rules. The icon, Sparkle, and releases are MAC-47.
+
+Design row 8 is built for trial (MAC-53): selecting a file in the Files block slides the diff in as a pane over the page's blocks, with a file tree, inline and side by side modes, and a review thread as a second pane over the diff. It is the first answer to open question 4 to try in the app. Reply and Resolve do nothing yet.
+
+The owner's first look at the window brought small changes (MAC-55): the app's name shows once, centered; freshness, the version and commit, and the layout menu sit at the right end of the title bar; the footer is gone; the list's width can be dragged; and a row above the list picks one of three fixed views, "Needs my review", "Mine" and "Everything open". The views are plain predicates until the filter language exists.
 
 Configuration has started (MAC-56, the first step of MAC-40). Settings live as JSON files in a configuration folder that the app watches and keeps in git, the Settings window writes those files, and `github-pr-explorer-ctl config` and `layouts` read and change them. Answers 11 and 12 below were built as defaults. Still to come for MAC-40: views, layout rules, and teams' facts and actions as files, MCP, and the command line's filter, rule and action commands.
 
@@ -153,4 +157,4 @@ File: https://www.figma.com/design/XslUM40a0h5IXEs7tXtAqZ
 | 5 | Layout rules | Not reviewed |
 | 6 | Freshness, pending actions, and offline | Not reviewed |
 | 7 | Block catalogue | Not reviewed |
-| 8 | The diff as a pane that slides in over the pull request, after the pane stack in `mac-os-agent`'s Settings. A second answer to row 2. | Not reviewed |
+| 8 | The diff as a pane that slides in over the pull request, after the pane stack in `mac-os-agent`'s Settings. A second answer to row 2. | Not reviewed. Built for trial in the app (MAC-53). |

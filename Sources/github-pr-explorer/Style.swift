@@ -21,7 +21,7 @@ enum Style {
             Color.primary.opacity(0.045)
         }
     }
-    /// A block's card, the header, the footer and the list.
+    /// A block's card, the header and the list.
     static let surface = Color(nsColor: .textBackgroundColor)
     static let hairline = Color(nsColor: .separatorColor)
 

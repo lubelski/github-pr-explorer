@@ -88,7 +88,7 @@ enum SettingsPreviews {
     }
 
     static func window(_ model: ConfigurationModel, _ section: SettingsSection) -> AnyView {
-        let context = SettingsContext(build: BuildInfo(version: "0.1", build: "42", commit: "1a2b3c4"), world: .standard)
+        let context = SettingsContext(build: .preview, world: .standard)
         return AnyView(SettingsRootView(configuration: model, context: context, renderedSection: section)
             .environment(\.historyNow, MockWorld.now))
     }

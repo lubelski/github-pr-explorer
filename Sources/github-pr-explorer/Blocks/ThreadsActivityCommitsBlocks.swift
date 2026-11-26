@@ -7,6 +7,7 @@ struct ThreadsBlock: View {
     let pullRequest: PullRequest
     let size: BlockSize
     let context: BlockContext
+    @Environment(\.pageActions) private var actions
 
     var body: some View {
         let threads = pullRequest.threadsUnresolvedFirst
@@ -56,6 +57,15 @@ struct ThreadsBlock: View {
         }
         .padding(.vertical, 6)
         .opacity(thread.isResolved ? 0.65 : 1)
+        .contentShape(.rect)
+        .onTapGesture { if canOpen(thread) { actions.showThread?(thread.id) } }
+        .help(canOpen(thread) ? "Open this thread beside its line in the diff" : "")
+        .accessibilityAddTraits(canOpen(thread) ? .isButton : [])
+    }
+
+    /// A thread opens over its file's diff, so its file has to be in the pull request.
+    private func canOpen(_ thread: ReviewThread) -> Bool {
+        actions.showThread != nil && pullRequest.paneStack(showingThread: thread.id) != nil
     }
 }
 

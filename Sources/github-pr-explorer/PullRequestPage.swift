@@ -1,9 +1,63 @@
 import GitHubPRExplorerCore
 import SwiftUI
 
-/// One pull request: a fixed header, a tab strip when the layout has more than one tab, the
-/// selected tab's blocks in columns, and a footer with freshness and the layout menu.
+/// One pull request: a fixed header, then a stack of panes down to the window's bottom edge.
+/// The page's blocks, tab strip included, are the stack's base. A file's diff slides in over
+/// them, and a review thread over the diff. The header is never covered. Freshness and the
+/// layout menu are in the title bar, in `TitleBarStatus`.
 struct PullRequestPage: View {
+    @Bindable var model: AppModel
+    let pullRequest: PullRequest
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        VStack(spacing: 0) {
+            PageHeader(model: model, pullRequest: pullRequest)
+            PaneStackView(
+                path: model.panePath,
+                stripWidths: { available in
+                    DiffPaneLayout.widths(available: available, mode: model.diffMode, depth: model.panePath.depth).strips
+                },
+                backLabel: { level in level.depth == 0 ? "Back to the pull request" : "Back to the files" },
+                change: { body in change { body(&model.panePath) } }
+            ) { level, available in
+                pane(level, available: available)
+            }
+        }
+        .background(Style.pageBackground)
+        .environment(\.pageActions, PageActions(
+            openFilePath: model.panePath.openFilePath,
+            openFile: { path in change { model.openFile(path) } },
+            showThread: { id in change { model.showThread(id, in: pullRequest) } }))
+    }
+
+    @ViewBuilder private func pane(_ level: PaneLevel, available: CGFloat) -> some View {
+        switch level.item.flatMap(PullRequestPane.init(entry:)) {
+        case nil:
+            PageBlocks(model: model, pullRequest: pullRequest)
+        case .files(let path):
+            DiffPane(model: model, pullRequest: pullRequest, path: path,
+                     treeIsRail: DiffPaneLayout.widths(available: available, mode: model.diffMode, depth: 1).treeIsRail,
+                     change: change)
+        case .thread(let id):
+            if let thread = pullRequest.reviewThreads.first(where: { $0.id == id }) {
+                ThreadPane(model: model, pullRequest: pullRequest, thread: thread, now: model.now)
+                    .frame(width: DiffPaneLayout.threadPaneWidth, alignment: .topLeading)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+            }
+        }
+    }
+
+    /// Changes panes with the stack's motion.
+    private func change(_ body: @escaping () -> Void) {
+        withAnimation(PaneMotion.animation(reduceMotion: reduceMotion), body)
+    }
+}
+
+/// The page's blocks: the tab strip when there is more than one tab, and the selected tab's
+/// blocks. It is the base of the pane stack, so a diff covers all of it.
+struct PageBlocks: View {
     @Bindable var model: AppModel
     let pullRequest: PullRequest
 
@@ -11,7 +65,6 @@ struct PullRequestPage: View {
         let layout = model.layout
         let tabIndex = model.currentTabIndex
         VStack(spacing: 0) {
-            PageHeader(model: model, pullRequest: pullRequest)
             if layout.tabs.count > 1 {
                 TabStrip(layout: layout, pullRequest: pullRequest, selection: $model.selectedTab)
             }
@@ -22,11 +75,22 @@ struct PullRequestPage: View {
                     // Each tab keeps its own scroll position and block state.
                     .id("\(layout.id)/\(tabIndex)")
             }
-            Divider()
-            PageFooter(model: model, pullRequest: pullRequest)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Style.pageBackground)
     }
+}
+
+/// What blocks on the page can open in the panes over it.
+struct PageActions {
+    /// The file whose diff is open, which the Files block marks.
+    var openFilePath: String?
+    var openFile: ((String) -> Void)?
+    var showThread: ((String) -> Void)?
+}
+
+extension EnvironmentValues {
+    @Entry var pageActions = PageActions()
 }
 
 struct PageHeader: View {
@@ -186,45 +250,5 @@ struct BlockGrid: View {
                 }
             }
         }
-    }
-}
-
-struct PageFooter: View {
-    @Bindable var model: AppModel
-    let pullRequest: PullRequest
-
-    var body: some View {
-        let freshness = Freshness(provenance: pullRequest.provenance, now: model.now)
-        HStack(spacing: 12) {
-            Text(freshness.summary)
-                .help(freshness.details.joined(separator: "\n"))
-            if !model.library.problems.isEmpty {
-                let count = model.library.problems.count
-                Label(count == 1 ? "A layout file could not be read" : "\(count) layout files could not be read",
-                      systemImage: "exclamationmark.triangle")
-                    .foregroundStyle(.orange)
-                    .help(model.library.problems.map(\.description).joined(separator: "\n"))
-            }
-            Spacer()
-            Menu {
-                Picker("Layout", selection: $model.layoutID) {
-                    ForEach(model.library.layouts) { layout in
-                        Text(layout.name).tag(layout.id)
-                    }
-                }
-                .pickerStyle(.inline)
-                .labelsHidden()
-            } label: {
-                Text("Layout: \(model.layout.name)")
-            }
-            .menuStyle(.button)
-            .buttonStyle(.borderless)
-            .fixedSize()
-        }
-        .font(Style.secondary)
-        .foregroundStyle(.secondary)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 6)
-        .background(Style.surface)
     }
 }

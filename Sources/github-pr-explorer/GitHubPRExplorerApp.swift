@@ -16,7 +16,8 @@ struct GitHubPRExplorerApp: App {
             index: MockWorld.standard.index,
             now: MockWorld.now,
             library: .builtIn(),
-            selection: MockWorld.workedExample)
+            selection: MockWorld.workedExample,
+            windowState: .standard)
         let configuration = ConfigurationModel(store: ConfigurationStore(folder: ConfigurationStore.defaultFolder))
         // Every change, from Settings, a hand edit or ctl, reaches the open window at once.
         configuration.onApply = { [weak model] snapshot, previous in

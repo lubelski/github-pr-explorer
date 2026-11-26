@@ -42,21 +42,6 @@ struct SettingsContext {
     var world: MockWorld
 }
 
-/// The version, build number and commit, from the app's Info.plist.
-struct BuildInfo: Hashable {
-    var version: String
-    var build: String
-    var commit: String
-
-    static var current: BuildInfo {
-        let info = Bundle.main.infoDictionary ?? [:]
-        return BuildInfo(
-            version: info["CFBundleShortVersionString"] as? String ?? "development build",
-            build: info["CFBundleVersion"] as? String ?? "none",
-            commit: info["GitHubPRExplorerGitCommit"] as? String ?? "unknown")
-    }
-}
-
 /// The Settings window's content: a fixed-width sidebar of sections, and the section beside it.
 /// The selected section is window state, not configuration, so it is kept in the preferences
 /// as the owner's other apps keep it.

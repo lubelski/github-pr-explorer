@@ -35,6 +35,24 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
 - The command line tool starts with the mock world
   - `github-pr-explorer-ctl` lists pull requests, shows one, and exports the mock world. `list` prints tab-separated lines so agents can split them. `show --json` prints the same JSON the export writes.
   - The export writes `world.json` and one file per pull request under `pull-requests/`, named like `acme-api-4826.json`.
+- A page layout is a JSON document
+  - `PageLayout` has a format version, an id, a name, and tabs in order. A tab has a name and columns in order. A column has a relative width and blocks in order. A block placement is a block kind and a size, small or large. It is `Codable` and written with sorted keys, so the same layout is the same bytes.
+  - The block kinds are description, checks, reviewers, owners touched, files, threads, activity, commits, and labels and metadata. An unknown kind fails to decode. A tab with no blocks is allowed.
+  - A file that does not decode is reported with its file name, where in the file, and what is wrong, such as `decision-first.json, at tabs[0].columns[0].blocks[0].kind: unknown block kind "summary"`. The app shows the problem in the page footer and keeps going. When "Decision first" itself cannot be read, a copy compiled into the app is used, and a test keeps the two equal.
+  - Layout rules, a configuration folder, and Edit Layout come later and build on this shape.
+- Two layouts ship
+  - "Decision first", after Figma row 1: one tab, two columns at widths 1.85 and 1. Left: Description, Threads, Files. Right: Checks, Reviewers, Owners touched, Activity.
+  - "Tabbed", after Figma row 2: Overview (Description, Reviewers, Owners touched, Activity), Files (Files, Commits), Checks, Threads.
+  - Both are JSON resource files in the core library, read through the same decoding a person's own file goes through. The footer's layout menu switches between them.
+- The header is fixed above the tabs, for now
+  - The repository and number, title, status sentence, and action buttons sit above the tabs and are not a block. This is temporary. `VISION.md` says no block has a fixed place, so the header becomes a block, or blocks, when Edit Layout arrives.
+  - The action buttons are disabled with the tooltip "Not connected to GitHub yet". The line under them says why Merge is unavailable when it is.
+- The page reads a fixed clock
+  - The window measures every age from `MockWorld.now`, so it reads the same on every run. Freshness in the footer is the oldest section's age, so it never claims more than is true, and its tooltip lists each section with its source.
+- Renders are drawn offscreen
+  - `github-pr-explorer --render-previews <folder> [state ...]` builds the real window with the mock world's index and a model set to each named state, in a titled window that is never put on screen, and writes a PNG in light and in dark. It sets the activation policy to prohibited, so nothing appears and nothing takes focus. `scripts/render-previews.sh` runs it, stamped and signed as the bundle is, and can attach the PNGs to a pull request.
+  - The states cover #4826 in each layout and tab, the awkward mock cases, the list with a search, a bad layout file, and every block at both sizes, full and empty. The empty one is made up in the renderer with provenance `mock`.
+  - Offscreen, a list's selected row does not draw, so the list draws it by hand while rendering.
 - Pull requests are merged by whoever wrote them
   - The owner said on 2026-11-25 that sessions and their subagents may merge as they work, because the app has no users until he installs it.
 - The vision and the plan are separate files

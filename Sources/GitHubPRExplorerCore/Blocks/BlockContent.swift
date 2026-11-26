@@ -274,26 +274,37 @@ public struct Freshness: Sendable, Hashable {
         public var section: PullRequestSection
         public var source: DataSource
         public var age: TimeInterval
+        /// False for a section the sync has not fetched yet. Its age means nothing then.
+        public var isFetched = true
     }
 
-    /// Oldest first.
+    /// Oldest first, with sections not fetched yet first of all.
     public var sections: [Section]
 
     public init(provenance: Provenance, now: Date) {
         sections = PullRequestSection.allCases
-            .map { Section(section: $0, source: provenance[$0].source, age: max(0, now.timeIntervalSince(provenance[$0].fetchedAt))) }
+            .map { Section(section: $0, source: provenance[$0].source, age: max(0, now.timeIntervalSince(provenance[$0].fetchedAt)),
+                           isFetched: provenance[$0].isFetched) }
             .sorted { $0.age == $1.age ? $0.section.rawValue < $1.section.rawValue : $0.age > $1.age }
     }
 
-    /// The oldest section's age: everything on the page is at least this fresh.
-    public var oldestAge: TimeInterval { sections.first?.age ?? 0 }
+    /// The oldest fetched section's age: everything fetched is at least this fresh.
+    public var oldestAge: TimeInterval { sections.first(where: \.isFetched)?.age ?? 0 }
 
-    /// "Synced 3 min ago", by the oldest section, so it never claims more than is true.
-    public var summary: String { "Synced \(RelativeAge.ago(oldestAge))" }
+    /// The sections not fetched yet.
+    public var unfetched: [PullRequestSection] { sections.filter { !$0.isFetched }.map(\.section) }
+
+    /// "Synced 3 min ago", by the oldest section, so it never claims more than is true. When
+    /// some sections are not fetched yet it says so instead.
+    public var summary: String {
+        if sections.allSatisfy({ !$0.isFetched }) { return "Not fetched yet" }
+        if !unfetched.isEmpty { return "Details not fetched yet" }
+        return "Synced \(RelativeAge.ago(oldestAge))"
+    }
 
     /// One line per section, oldest first, such as "files: 3 min ago, local clone".
     public var details: [String] {
-        sections.map { "\($0.section.rawValue): \(RelativeAge.ago($0.age)), \($0.source.displayName)" }
+        sections.map { $0.isFetched ? "\($0.section.rawValue): \(RelativeAge.ago($0.age)), \($0.source.displayName)" : "\($0.section.rawValue): not fetched yet" }
     }
 }
 

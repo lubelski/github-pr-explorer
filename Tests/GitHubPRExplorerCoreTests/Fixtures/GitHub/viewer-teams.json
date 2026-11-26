@@ -1,0 +1,12 @@
+{
+  "data": {
+    "viewer": {
+      "organizations": {
+        "nodes": [
+          { "login": "acme", "teams": { "nodes": [ { "slug": "security" } ] } }
+        ]
+      }
+    },
+    "rateLimit": { "cost": 1, "remaining": 4989, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

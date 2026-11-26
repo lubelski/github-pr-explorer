@@ -1,0 +1,6 @@
+{
+  "data": {
+    "viewer": { "login": "robin-quill", "name": "Robin Quill" },
+    "rateLimit": { "cost": 1, "remaining": 4990, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

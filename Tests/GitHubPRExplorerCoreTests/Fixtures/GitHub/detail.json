@@ -1,0 +1,64 @@
+{
+  "data": {
+    "nodes": [
+      {
+        "id": "PR_kwDOAcmeApi101",
+        "body": "Sessions now refresh a minute before they expire.\n\n- [x] Tests",
+        "milestone": { "title": "December", "dueOn": "2026-12-31T00:00:00Z" },
+        "closingIssuesReferences": { "nodes": [ { "number": 99, "title": "Sessions expire mid-request", "closed": false, "repository": { "name": "api", "owner": { "login": "acme" } } } ] },
+        "reviews": {
+          "nodes": [
+            { "id": "PRR_1", "state": "CHANGES_REQUESTED", "submittedAt": "2026-11-25T12:00:00Z", "createdAt": "2026-11-25T11:58:00Z", "body": "One question about the clock.", "author": { "__typename": "User", "login": "ada-park", "name": "Ada Park" } },
+            { "id": "PRR_2", "state": "DISMISSED", "submittedAt": "2026-11-25T11:00:00Z", "createdAt": "2026-11-25T11:00:00Z", "body": "", "author": { "__typename": "User", "login": "max-ito", "name": "" } },
+            { "id": "PRR_3", "state": "PENDING", "submittedAt": null, "createdAt": "2026-11-25T13:00:00Z", "body": "", "author": { "__typename": "User", "login": "robin-quill", "name": "Robin Quill" } }
+          ]
+        },
+        "commits": {
+          "nodes": [
+            { "commit": { "oid": "aaaa000000000000000000000000000000000001", "message": "Refresh sessions early\n\nA minute before expiry.", "authoredDate": "2026-11-24T09:00:00Z", "author": { "name": "Sam Rivera", "user": { "login": "sam-rivera", "name": "Sam Rivera" } } } },
+            { "commit": { "oid": "1111111111111111111111111111111111111111", "message": "Test the refresh", "authoredDate": "2026-11-25T10:00:00Z", "author": { "name": "Sam Rivera", "user": null } } }
+          ]
+        },
+        "reviewThreads": {
+          "nodes": [
+            {
+              "id": "PRRT_1", "path": "auth/session.ts", "line": 14, "originalLine": 14, "diffSide": "RIGHT", "isResolved": false, "isOutdated": false,
+              "comments": { "nodes": [
+                { "id": "PRRC_1", "body": "Which clock is this?", "createdAt": "2026-11-25T12:00:00Z", "diffHunk": "@@ -10,1 +10,3 @@ export function refresh()\n   const now = Date.now()\n+  const early = now + 60_000", "author": { "__typename": "User", "login": "ada-park", "name": "Ada Park" } }
+              ] }
+            },
+            {
+              "id": "PRRT_2", "path": "auth/old.ts", "line": null, "originalLine": 3, "diffSide": "LEFT", "isResolved": true, "isOutdated": true,
+              "comments": { "nodes": [
+                { "id": "PRRC_2", "body": "Gone now.", "createdAt": "2026-11-24T12:00:00Z", "diffHunk": "@@ -1,3 +0,0 @@\n-import { legacy } from './legacy'", "author": null }
+              ] }
+            }
+          ]
+        },
+        "comments": { "nodes": [
+          { "id": "IC_1", "body": "### Expensive checks\n\n- [ ] Run the full end-to-end suite", "createdAt": "2026-11-24T09:05:00Z", "author": { "__typename": "Bot", "login": "ci-bot" } }
+        ] },
+        "timelineItems": { "nodes": [
+          { "__typename": "ReviewRequestedEvent", "id": "RRE_1", "createdAt": "2026-11-24T09:01:00Z", "actor": { "__typename": "User", "login": "sam-rivera", "name": "Sam Rivera" }, "requestedReviewer": { "__typename": "User", "login": "robin-quill", "name": "Robin Quill" } },
+          { "__typename": "IssueComment", "id": "IC_1", "createdAt": "2026-11-24T09:05:00Z", "author": { "__typename": "Bot", "login": "ci-bot" } },
+          { "__typename": "PullRequestCommit", "id": "PRC_1", "commit": { "committedDate": "2026-11-25T10:00:00Z", "author": { "name": "Sam Rivera", "user": { "login": "sam-rivera", "name": "Sam Rivera" } } } },
+          { "__typename": "PullRequestCommit", "id": "PRC_2", "commit": { "committedDate": "2026-11-25T10:05:00Z", "author": { "name": "Sam Rivera", "user": { "login": "sam-rivera", "name": "Sam Rivera" } } } },
+          { "__typename": "PullRequestReview", "id": "PRR_1", "createdAt": "2026-11-25T12:00:00Z", "state": "CHANGES_REQUESTED", "author": { "__typename": "User", "login": "ada-park", "name": "Ada Park" } },
+          { "__typename": "PullRequestReview", "id": "PRR_3", "createdAt": "2026-11-25T13:00:00Z", "state": "PENDING", "author": { "__typename": "User", "login": "robin-quill", "name": "Robin Quill" } }
+        ] }
+      },
+      {
+        "id": "PR_kwDOAcmeWeb55",
+        "body": "",
+        "milestone": null,
+        "closingIssuesReferences": { "nodes": [] },
+        "reviews": { "nodes": [] },
+        "commits": { "nodes": [] },
+        "reviewThreads": { "nodes": [] },
+        "comments": { "nodes": [] },
+        "timelineItems": { "nodes": [] }
+      }
+    ],
+    "rateLimit": { "cost": 2, "remaining": 4984, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

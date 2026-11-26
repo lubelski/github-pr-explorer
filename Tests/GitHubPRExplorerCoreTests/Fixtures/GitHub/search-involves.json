@@ -1,0 +1,58 @@
+{
+  "data": {
+    "search": {
+      "pageInfo": { "hasNextPage": false, "endCursor": "Y3Vyc29yOjI=" },
+      "nodes": [
+        {
+          "id": "PR_kwDOAcmeApi101",
+          "number": 101,
+          "title": "Refresh sessions before they expire",
+          "isDraft": false,
+          "state": "OPEN",
+          "createdAt": "2026-11-24T09:00:00Z",
+          "updatedAt": "2026-11-25T17:40:00Z",
+          "mergedAt": null,
+          "closedAt": null,
+          "baseRefName": "main",
+          "headRefName": "sam/session-refresh",
+          "headRefOid": "1111111111111111111111111111111111111111",
+          "additions": 12,
+          "deletions": 3,
+          "repository": { "name": "api", "owner": { "login": "acme" } },
+          "author": { "__typename": "User", "login": "sam-rivera", "name": "Sam Rivera" },
+          "labels": { "nodes": [ { "name": "security", "color": "d73a4a" } ] },
+          "assignees": { "nodes": [] },
+          "reviewRequests": {
+            "nodes": [
+              { "asCodeOwner": false, "requestedReviewer": { "__typename": "User", "login": "robin-quill", "name": "Robin Quill" } },
+              { "asCodeOwner": true, "requestedReviewer": { "__typename": "Team", "slug": "security", "organization": { "login": "acme" } } }
+            ]
+          }
+        },
+        {
+          "id": "PR_kwDOAcmeWeb55",
+          "number": 55,
+          "title": "Show the build number in the footer",
+          "isDraft": false,
+          "state": "OPEN",
+          "createdAt": "2026-11-25T10:00:00Z",
+          "updatedAt": "2026-11-25T16:00:00.123Z",
+          "mergedAt": null,
+          "closedAt": null,
+          "baseRefName": "main",
+          "headRefName": "robin/build-number",
+          "headRefOid": "2222222222222222222222222222222222222222",
+          "additions": 4,
+          "deletions": 0,
+          "repository": { "name": "web", "owner": { "login": "acme" } },
+          "author": { "__typename": "User", "login": "robin-quill", "name": "Robin Quill" },
+          "labels": { "nodes": [] },
+          "assignees": { "nodes": [ { "login": "robin-quill", "name": "Robin Quill" } ] },
+          "reviewRequests": { "nodes": [] }
+        },
+        {}
+      ]
+    },
+    "rateLimit": { "cost": 1, "remaining": 4988, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

@@ -1,0 +1,6 @@
+{
+  "data": {
+    "search": { "pageInfo": { "hasNextPage": false, "endCursor": null }, "nodes": [] },
+    "rateLimit": { "cost": 1, "remaining": 4987, "limit": 5000, "resetAt": "2026-11-25T19:00:00Z" }
+  }
+}

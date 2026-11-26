@@ -9,6 +9,8 @@ import SwiftUI
 /// end of the title bar. There is no footer.
 struct MainWindowView: View {
     @Bindable var model: AppModel
+    /// The updater, for the indicator in the title bar when an update waits.
+    var updater: AppUpdater
 
     /// The narrowest the page gets beside the list. The list gives way to it in a small
     /// window, without forgetting the width the person chose.
@@ -19,7 +21,7 @@ struct MainWindowView: View {
             content(listWidth: shownListWidth(windowWidth: proxy.size.width))
         }
         .background(Style.pageBackground)
-        .standardTitleBar { TitleBarStatus(model: model) }
+        .standardTitleBar { TitleBarStatus(model: model, updater: updater) }
     }
 
     private func shownListWidth(windowWidth: CGFloat) -> CGFloat {

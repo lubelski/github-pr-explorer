@@ -11,15 +11,22 @@ struct GitHubPRExplorerApp: App {
         library: .builtIn(),
         selection: MockWorld.workedExample,
         windowState: .standard)
+    @State private var updater = AppUpdater()
 
     var body: some Scene {
         Window(AppName.display, id: "main") {
-            MainWindowView(model: model)
+            MainWindowView(model: model, updater: updater)
                 .frame(minWidth: 900, minHeight: 560)
         }
         .defaultSize(width: 1480, height: 900)
         .windowResizability(.contentMinSize)
         .commands {
+            CommandGroup(after: .appInfo) {
+                if updater.isAvailable {
+                    Button(AppUpdater.checkTitle) { updater.checkForUpdates() }
+                        .disabled(!updater.canCheck)
+                }
+            }
             CommandGroup(after: .sidebar) {
                 Button(model.showsList ? "Hide Pull Request List" : "Show Pull Request List") {
                     withAnimation(.snappy) { model.showsList.toggle() }

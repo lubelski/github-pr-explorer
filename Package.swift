@@ -4,6 +4,10 @@ import PackageDescription
 let package = Package(
     name: "github-pr-explorer",
     platforms: [.macOS(.v27)],
+    dependencies: [
+        // The updater. Only the app links it, and only `AppUpdater.swift` imports it.
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.10.1"),
+    ],
     targets: [
         // Models, derived logic, the index protocol, page layouts, and the mock world. Foundation only.
         .target(
@@ -20,7 +24,7 @@ let package = Package(
         // draws its views to PNG files with `--render-previews`, for pull request evidence.
         .executableTarget(
             name: "github-pr-explorer",
-            dependencies: ["GitHubPRExplorerCore"]
+            dependencies: ["GitHubPRExplorerCore", .product(name: "Sparkle", package: "Sparkle")]
         ),
         .testTarget(
             name: "GitHubPRExplorerCoreTests",

@@ -11,7 +11,7 @@ struct FilesBlock: View {
     let size: BlockSize
     @State private var showsAll = false
     @State private var closedFolders: Set<String> = []
-    @State private var selectedPath: String?
+    @Environment(\.pageActions) private var actions
     @Environment(\.previewExpandsBlocks) private var previewExpands
 
     var body: some View {
@@ -84,7 +84,7 @@ struct FilesBlock: View {
     }
 
     private func fileRow(_ file: ChangedFile, indented: Bool) -> some View {
-        let selected = selectedPath == file.path
+        let selected = actions.openFilePath == file.path
         let kind: String = switch file.changeKind {
         case .added: "  added"
         case .removed: "  removed"
@@ -96,8 +96,9 @@ struct FilesBlock: View {
             .padding(.leading, indented ? 20 : 0)
             .background(RoundedRectangle(cornerRadius: 4).fill(selected ? Color.accentColor.opacity(0.16) : .clear).padding(.horizontal, -4))
             .contentShape(Rectangle())
-            .onTapGesture { selectedPath = file.path }
+            .onTapGesture { actions.openFile?(file.path) }
             .help(file.previousPath.map { "\(file.path), renamed from \($0)" } ?? file.path)
+            .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
     private func countsRow(title: Text, additions: Int, deletions: Int, isBinary: Bool) -> some View {

@@ -6,7 +6,7 @@ Last updated 2026-11-25.
 
 ## Where we are
 
-Phase 0. Nothing is built. The vision is drafted and waiting for the owner, seven design rows are in Figma waiting for the owner, and two research files are in `planning/research/`.
+Phase 0, with the first code in. The vision is drafted and waiting for the owner, the design rows in Figma are waiting for the owner, and two research files are in `planning/research/`. The core library, a large deterministic mock world of 298 placeholder pull requests, and `github-pr-explorer-ctl` are built and tested, so views can be built with no network and no sign-in. There is no app target and no sync yet.
 
 ## What the research says
 

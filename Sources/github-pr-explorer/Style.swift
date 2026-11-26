@@ -191,3 +191,10 @@ struct StatusBadge: View {
             .help(badge.name)
     }
 }
+
+/// Why the action buttons do nothing yet. It reads true whether pull requests come from the
+/// mock world or from GitHub: the app reads, and does not write to GitHub yet.
+enum ReadOnlyNote {
+    static let short = "Read-only for now"
+    static let help = "Read-only for now. This version reads pull requests and does not write to GitHub yet."
+}

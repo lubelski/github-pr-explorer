@@ -96,7 +96,6 @@ extension EnvironmentValues {
 struct PageHeader: View {
     let model: AppModel
     let pullRequest: PullRequest
-    private let notConnected = "Not connected to GitHub yet"
 
     var body: some View {
         let pr = pullRequest
@@ -127,12 +126,12 @@ struct PageHeader: View {
                     Button("Request changes") {}
                     Button("Comment") {}
                     Button("Merge") {}
-                        .help(pr.mergeUnavailableReason ?? notConnected)
+                        .help(pr.mergeUnavailableReason ?? ReadOnlyNote.help)
                 }
                 .controlSize(.large)
                 .disabled(true)
-                .help(notConnected)
-                Text(pr.mergeUnavailableReason.map { "\($0) · \(notConnected)" } ?? notConnected)
+                .help(ReadOnlyNote.help)
+                Text(pr.mergeUnavailableReason.map { "\($0) · \(ReadOnlyNote.short)" } ?? ReadOnlyNote.short)
                     .font(Style.secondary)
                     .foregroundStyle(.secondary)
             }

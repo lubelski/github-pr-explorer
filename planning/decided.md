@@ -46,7 +46,7 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
   - Both are JSON resource files in the core library, read through the same decoding a person's own file goes through. The layout menu at the right end of the title bar switches between them and the person's own layouts, for the open window only. Settings holds the default.
 - The header is fixed above the tabs, for now
   - The repository and number, title, status sentence, and action buttons sit above the tabs and are not a block. This is temporary. `VISION.md` says no block has a fixed place, so the header becomes a block, or blocks, when Edit Layout arrives.
-  - The action buttons are disabled with the tooltip "Not connected to GitHub yet". The line under them says why Merge is unavailable when it is.
+  - The action buttons are disabled. The line under them says "Read-only for now", after why Merge is unavailable when it is, and the tooltip says this version reads pull requests and does not write to GitHub yet. It was "Not connected to GitHub yet" until MAC-69, which read as false once the data came from GitHub. One wording serves the mock world and GitHub.
 - The page reads a fixed clock
   - The window measures every age from `MockWorld.now`, so it reads the same on every run. Freshness at the right end of the title bar is the oldest section's age, so it never claims more than is true, and its tooltip lists each section with its source.
 - The main window has no footer, and status sits in the title bar (MAC-55)
@@ -81,7 +81,7 @@ What is settled for github-pr-explorer. [PLAN.md](../PLAN.md) has what is being 
   - Escape closes one pane, and so does the pane's back button ("‹ Pull request", "‹ Files"). With no pane open, Escape does what it did before. Panes slide with a 0.28-second spring with no bounce, or fade with Reduce Motion.
   - The panes belong to the selected pull request. Choosing another closes them.
   - Clicking a thread in the Threads block opens its file's diff with the thread on top, scrolled to its line. A thread whose file is not among the changed files does not open.
-  - The thread pane is 420 points: the file and line, the quoted line, each comment with its author and age, and a Reply field with Resolve and Reply, disabled with "Not connected to GitHub yet".
+  - The thread pane is 420 points: the file and line, the quoted line, each comment with its author and age, and a Reply field with Resolve and Reply, disabled with the same read-only note as the action buttons.
 - The diff pane's width rule
   - The page's strip is 300 points. It narrows to a 24-point sliver in side by side mode, with a thread open, or when a full strip and a 220-point file tree would leave the diff less than 720 points. Then the tree narrows to a 40-point rail, in side by side mode or when the full tree would still leave less than 720. The page gives way before the tree, as the oldest strip does in the stack. `DiffPaneLayout` holds the rule, and `PaneStackLayout` has the last word in a very narrow window.
   - At the app's default size, with the list showing, the page is a sliver even inline: 1,180 points less 300 and 220 is under 720.

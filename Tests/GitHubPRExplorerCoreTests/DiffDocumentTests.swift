@@ -168,6 +168,8 @@ import Testing
 
     @Test func otherLanguagesAndPlainText() {
         #expect(kinds("key: value # note", .hashComments) == ["comment:# note"])
+        // `type:` in YAML is a key, not a keyword.
+        #expect(kinds("type: object", .hashComments) == [])
         #expect(kinds("const x = 1", .plain) == [])
         #expect(SyntaxTint.Language(path: "auth/middleware.ts") == .cLike)
         #expect(SyntaxTint.Language(path: "openapi/acme-api.yaml") == .hashComments)

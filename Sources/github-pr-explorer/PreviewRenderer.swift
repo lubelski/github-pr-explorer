@@ -169,6 +169,41 @@ enum PreviewRenderer {
             },
         ]
 
+        // The diff pane over the page (MAC-53, Figma row 8).
+        func diff(_ reference: PullRequestReference?, file: String, mode: DiffMode = .inline, thread: String? = nil,
+                  layout: String = LayoutLibrary.fallbackID, tab: Int = 0) -> AppModel {
+            let model = model(reference, layout: layout, tab: tab)
+            model.diffMode = mode
+            if let pr = model.selectedPullRequest {
+                if let thread, let path = pr.paneStack(showingThread: thread) {
+                    model.panePath = path
+                } else {
+                    model.openFile(file)
+                }
+                model.buildDocumentNow(for: pr, path: file)
+            }
+            return model
+        }
+        let examplePR = index.pullRequest(example)!
+        let middlewareThread = examplePR.reviewThreads.first { $0.path == "auth/middleware.ts" }!.id
+        let large = first { $0.files.count >= 100 }
+        let largeFile = large.flatMap(index.pullRequest)?.files.max { ($0.patch?.count ?? 0) < ($1.patch?.count ?? 0) }?.path ?? ""
+        let mail = first { $0.title == "Move the email templates into their own folder" }
+        states += [
+            State(name: "diff-4826-inline") { diff(example, file: "auth/middleware.ts") },
+            State(name: "diff-4826-side-by-side") { diff(example, file: "auth/middleware.ts", mode: .sideBySide) },
+            State(name: "diff-4826-thread") { diff(example, file: "auth/middleware.ts", thread: middlewareThread) },
+            State(name: "diff-4826-tabbed") { diff(example, file: "auth/session.ts", layout: "tabbed", tab: 1) },
+            State(name: "diff-4826-narrow", size: CGSize(width: 1240, height: 860)) { diff(example, file: "auth/middleware.ts") },
+            State(name: "diff-5000-lines") { diff(large, file: largeFile) },
+            State(name: "diff-5000-lines-side-by-side") { diff(large, file: largeFile, mode: .sideBySide) },
+            State(name: "diff-renamed") { diff(mail, file: "mail/templates/password-reset.ts") },
+            State(name: "diff-renamed-without-changes") { diff(mail, file: "mail/templates/welcome.ts") },
+            State(name: "diff-binary") { diff(mail, file: "mail/assets/logo.png") },
+            State(name: "diff-deleted") { diff(mail, file: "lib/mail/legacy-sender.ts") },
+            State(name: "diff-added-side-by-side") { diff(mail, file: "mail/index.ts", mode: .sideBySide) },
+        ]
+
         // Every block, small on the left and large on the right, through the same decoding a
         // layout file uses.
         let catalogue = PageLayout(id: "catalogue", name: "Block catalogue (preview only)", tabs: [

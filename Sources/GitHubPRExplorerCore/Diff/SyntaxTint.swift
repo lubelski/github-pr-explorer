@@ -10,7 +10,8 @@ public enum SyntaxTint {
     public enum Language: Sendable, Hashable {
         /// TypeScript, JavaScript, Swift, Go and similar: `//` and `/* */` comments, three quotes.
         case cLike
-        /// YAML, Terraform, shell, Python, Ruby: `#` comments.
+        /// YAML, Terraform, shell, Python, Ruby: `#` comments, strings and numbers, no keywords,
+        /// since `type:` in YAML is a key.
         case hashComments
         /// No coloring.
         case plain
@@ -125,7 +126,7 @@ public enum SyntaxTint {
                 let word = String(characters[index..<end])
                 let previous: Character? = index > 0 ? characters[index - 1] : nil
                 // `options.default` is a property, not the keyword.
-                if keywords.contains(word) && previous != "." {
+                if language == .cLike && keywords.contains(word) && previous != "." {
                     add(index..<end, .keyword)
                 } else {
                     plain += word

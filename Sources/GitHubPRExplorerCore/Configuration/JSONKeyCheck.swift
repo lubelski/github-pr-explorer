@@ -23,6 +23,7 @@ enum JSONKeyCheck {
     static let settingsShape = Shape.object([
         "formatVersion": .value, "appearance": .value, "defaultLayout": .value,
         "hidesBotEventsInActivity": .value, "updatesAutomatically": .value, "experiments": .dictionary(.value),
+        "pullRequestSource": .value, "syncIntervalSeconds": .value, "watchedRepositories": .array(.value),
     ])
 
     static let layoutShape = Shape.object([

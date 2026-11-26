@@ -44,6 +44,25 @@
       "default": {},
       "propertyNames": { "enum": [] },
       "additionalProperties": { "type": "boolean" }
+    },
+    "pullRequestSource": {
+      "description": "Where the window's pull requests come from: mock for the built-in placeholder pull requests, with no network and no sign-in, or github for real ones, read through the gh login on this Mac. Fetched data is kept in the index folder next to the configuration folder, never in it. Default: mock.",
+      "type": "string",
+      "enum": ["mock", "github"],
+      "default": "mock"
+    },
+    "syncIntervalSeconds": {
+      "description": "While the source is github, how often the light list pass runs, in seconds, from 60 to 3600. A pull request that changed, or that is opened, then has its full detail fetched. Default: 300.",
+      "type": "integer",
+      "minimum": 60,
+      "maximum": 3600,
+      "default": 300
+    },
+    "watchedRepositories": {
+      "description": "Repositories, each written owner/name, whose every open pull request is fetched, besides the ones that involve the signed-in person (authored, review requested, assigned, mentioned). Default: none.",
+      "type": "array",
+      "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$" },
+      "default": []
     }
   }
 }

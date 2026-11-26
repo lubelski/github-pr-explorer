@@ -18,6 +18,12 @@ public struct Repository: Codable, Sendable, Hashable, Comparable, CustomStringC
     }
 
     public var fullName: String { "\(owner)/\(name)" }
+
+    /// True when `text` uses only the letters, digits, `-`, `_` and `.` GitHub allows in an
+    /// owner and a repository name, with one `/` between them.
+    public static func isPlainName(_ text: String) -> Bool {
+        text.wholeMatch(of: /[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+/) != nil
+    }
     public var description: String { fullName }
 
     public static func < (lhs: Repository, rhs: Repository) -> Bool {

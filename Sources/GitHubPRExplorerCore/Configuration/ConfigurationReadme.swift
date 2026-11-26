@@ -22,6 +22,12 @@ enum ConfigurationReadme {
             updates on its own. `false` to check only with Check for Updates.
           - `experiments`: features being tried, by name, such as `{"someExperiment": true}`.
             One left out is off.
+          - `pullRequestSource`: `"mock"` for the built-in placeholder pull requests, or
+            `"github"` to read real ones through the `gh` login on this Mac.
+          - `syncIntervalSeconds`: how often the list of pull requests is checked while the
+            source is GitHub, from 60 to 3600. Default 300.
+          - `watchedRepositories`: repositories, as `"owner/name"`, whose every open pull
+            request is fetched, besides the ones that involve you.
           A key left out takes its default. A key the app does not know makes the file invalid.
         - `layouts/<id>.json`: your own page layouts, one per file, named after the layout's id.
           A layout has `formatVersion` (`1`), `id` (lowercase letters, digits and hyphens),
@@ -35,6 +41,9 @@ enum ConfigurationReadme {
           in Settings, Layouts.
 
         The JSON Schemas for both are in the app's repository, under `schemas/`.
+
+        Pull request data fetched from GitHub is never kept here. It is a cache in the `index`
+        folder next to this one, and deleting that folder is always safe.
 
         ## When a file is wrong
 

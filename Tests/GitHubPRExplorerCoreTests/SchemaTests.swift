@@ -6,7 +6,7 @@ import Testing
 ///
 /// It is not a full JSON Schema validator. `MiniSchemaValidator` checks the keywords these two
 /// schemas use: type, properties, required, additionalProperties, items, $ref to $defs, enum,
-/// pattern, minLength, maxLength, minItems, exclusiveMinimum and propertyNames. The tests check
+/// pattern, minLength, maxLength, minItems, exclusiveMinimum, minimum, maximum and propertyNames. The tests check
 /// that the names and enums match the types, that the built-in layouts and the default settings
 /// pass, and that files the app refuses are refused by the schema too.
 @Suite struct SchemaTests {
@@ -40,6 +40,12 @@ import Testing
         #expect(properties["defaultLayout"]?["default"] as? String == defaults["defaultLayout"] as? String)
         #expect(properties["hidesBotEventsInActivity"]?["default"] as? Bool == defaults["hidesBotEventsInActivity"] as? Bool)
         #expect(properties["updatesAutomatically"]?["default"] as? Bool == defaults["updatesAutomatically"] as? Bool)
+        #expect(properties["pullRequestSource"]?["enum"] as? [String] == PullRequestSource.allCases.map(\.rawValue))
+        #expect(properties["pullRequestSource"]?["default"] as? String == defaults["pullRequestSource"] as? String)
+        #expect(properties["syncIntervalSeconds"]?["default"] as? Int == defaults["syncIntervalSeconds"] as? Int)
+        #expect(properties["syncIntervalSeconds"]?["minimum"] as? Int == ConfigurationSettings.syncIntervalRange.lowerBound)
+        #expect(properties["syncIntervalSeconds"]?["maximum"] as? Int == ConfigurationSettings.syncIntervalRange.upperBound)
+        #expect((properties["watchedRepositories"]?["default"] as? [String])?.isEmpty == true)
     }
 
     @Test func layoutSchemaNamesMatchTheTypes() throws {
@@ -101,6 +107,12 @@ import Testing
         #"{"formatVersion": 1, "hidesBotEventsInActivity": "yes"}"#,
         #"{"formatVersion": 1, "experiments": {"warpDrive": true}}"#,
         #"{"formatVersion": 1, "defaultLayout": ""}"#,
+        #"{"formatVersion": 1, "pullRequestSource": "gitlab"}"#,
+        #"{"formatVersion": 1, "syncIntervalSeconds": 10}"#,
+        #"{"formatVersion": 1, "syncIntervalSeconds": 7200}"#,
+        #"{"formatVersion": 1, "watchedRepositories": ["acme"]}"#,
+        #"{"formatVersion": 1, "watchedRepositories": ["acme/api/extra"]}"#,
+        #"{"formatVersion": 1, "watchedRepositories": "acme/api"}"#,
     ]
 
     @Test func filesTheAppRefusesTheSchemaRefuses() throws {
@@ -172,6 +184,12 @@ struct MiniSchemaValidator {
         }
         if let number = value as? NSNumber, let minimum = schema["exclusiveMinimum"] as? NSNumber, number.doubleValue <= minimum.doubleValue {
             problems.append("\(path): not above \(minimum)")
+        }
+        if let number = value as? NSNumber, let minimum = schema["minimum"] as? NSNumber, number.doubleValue < minimum.doubleValue {
+            problems.append("\(path): below \(minimum)")
+        }
+        if let number = value as? NSNumber, let maximum = schema["maximum"] as? NSNumber, number.doubleValue > maximum.doubleValue {
+            problems.append("\(path): above \(maximum)")
         }
         if let items = value as? [Any] {
             if let minimum = schema["minItems"] as? Int, items.count < minimum { problems.append("\(path): fewer than \(minimum) items") }

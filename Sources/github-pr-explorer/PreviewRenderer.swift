@@ -210,13 +210,17 @@ enum PreviewRenderer {
         ]
 
         // The title bar while an update waits (MAC-47): found, then downloaded. Nothing else in
-        // the window changes. The smallest window checks it still clears the centered name.
+        // the window changes. A narrow window shows the indicator's symbol only, and the two
+        // window states check the status still clears the centered name.
         let available = AppUpdates.Pending(stage: .available, version: "0.2.0")
         let ready = AppUpdates.Pending(stage: .readyToInstall, version: "0.2.0")
         states += [
             State(name: "titlebar-update-available", pendingUpdate: available) { model(example) },
             State(name: "titlebar-update-ready", pendingUpdate: ready) { model(example) },
             State(name: "window-smallest-update-ready", size: CGSize(width: 900, height: 560),
+                  pendingUpdate: ready) { model(example) },
+            // Just wider than MainWindowView.compactTitleBarWidth, where the full label returns.
+            State(name: "window-narrow-update-ready", size: CGSize(width: 1240, height: 760),
                   pendingUpdate: ready) { model(example) },
         ]
 

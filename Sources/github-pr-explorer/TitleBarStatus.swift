@@ -10,6 +10,8 @@ import SwiftUI
 struct TitleBarStatus: View {
     @Bindable var model: AppModel
     var updater: AppUpdater
+    /// A narrow window: the update indicator shows its symbol only.
+    var compact = false
 
     var body: some View {
         HStack(spacing: 6) {
@@ -46,14 +48,20 @@ struct TitleBarStatus: View {
         Button {
             updater.installPendingUpdate()
         } label: {
-            Label(pending.title, systemImage: pending.symbolName)
-                .labelStyle(.titleAndIcon)
+            if compact {
+                Label(pending.title, systemImage: pending.symbolName)
+                    .labelStyle(.iconOnly)
+            } else {
+                Label(pending.title, systemImage: pending.symbolName)
+                    .labelStyle(.titleAndIcon)
+            }
         }
         .buttonStyle(.borderless)
         .controlSize(.small)
         .foregroundStyle(.tint)
         .fixedSize()
         .help(pending.help)
+        .accessibilityLabel(pending.title)
         .padding(.leading, 6)
     }
 

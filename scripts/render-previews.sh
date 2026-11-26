@@ -50,6 +50,8 @@ cp "$SOURCE" "$BIN"
 # The copy finds the core library's resources (the built-in layouts) beside it, as the debug
 # binary does.
 ln -sfn "$(dirname "$SOURCE")/github-pr-explorer_GitHubPRExplorerCore.bundle" build/render/github-pr-explorer_GitHubPRExplorerCore.bundle
+# And Sparkle, which the binary looks for beside itself (@loader_path). Renders never start it.
+ln -sfn "$(dirname "$SOURCE")/Sparkle.framework" build/render/Sparkle.framework
 SDK_VERSION="$(xcrun --sdk macosx --show-sdk-version)"
 xcrun vtool -set-build-version macos 27.0 "$SDK_VERSION" -replace -output "$BIN" "$BIN" 2>/dev/null
 codesign --force --sign - "$BIN" 2>/dev/null

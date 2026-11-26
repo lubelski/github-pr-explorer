@@ -2,11 +2,13 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25.
+Last updated 2026-11-25, after the first window.
 
 ## Where we are
 
-Phase 0, with the first code in. The vision is drafted and waiting for the owner, the design rows in Figma are waiting for the owner, and two research files are in `planning/research/`. The core library, a large deterministic mock world of 298 placeholder pull requests, and `github-pr-explorer-ctl` are built and tested, so views can be built with no network and no sign-in. There is no app target and no sync yet.
+Phase 0, with the first code in. The vision is drafted and waiting for the owner, the design rows in Figma are waiting for the owner, and two research files are in `planning/research/`. The core library, a large deterministic mock world of 298 placeholder pull requests, and `github-pr-explorer-ctl` are built and tested, so views can be built with no network and no sign-in.
+
+The first window is built on the mock world (MAC-46): the open pull requests in a searchable list, and the page drawn as blocks from a layout document, with "Decision first" and "Tabbed" built in. It is for the owner to judge rows 1 and 2 as a running app. The actions do nothing yet, the header is fixed above the tabs, and there is no sync, Edit Layout, layout rules, or diff. The icon, Sparkle, and releases are MAC-47.
 
 ## What the research says
 
@@ -76,7 +78,7 @@ Estimates are agent build time. The calendar is set by how fast the owner can re
 | 0 | Write the idea down and try layouts in Figma | In progress. Judgment call, budget, 2 review rounds, known by the owner's first pass over the Figma rows. |
 | 1 | Probes (below) | Not started. Field-checked, finish line, 1 to 2 days of build time, known by the end of the sync cost probe. |
 | 2 | Index and sync core as a library with tests and a command-line tool, no window | Not estimated. Depends on phase 1. |
-| 3 | A window that lists and opens pull requests from the index, with a fixed default layout | Not estimated. |
+| 3 | A window that lists and opens pull requests from the index, with a fixed default layout | Started on mock data: the list and the page from two built-in layouts. Needs the index from phase 2. |
 | 4 | Blocks, layouts as documents, and Edit Layout | Not estimated. |
 | 5 | Layout rules, on the shared filter language | Not estimated. |
 | 6 | Actions: comment, approve, merge | Not estimated. |

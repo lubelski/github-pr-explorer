@@ -2,7 +2,7 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after the first window.
+Last updated 2026-11-25, after the Settings window and the configuration folder.
 
 ## Where we are
 
@@ -13,6 +13,8 @@ The first window is built on the mock world (MAC-46): the open pull requests in 
 Design row 8 is built for trial (MAC-53): selecting a file in the Files block slides the diff in as a pane over the page's blocks, with a file tree, inline and side by side modes, and a review thread as a second pane over the diff. It is the first answer to open question 4 to try in the app. Reply and Resolve do nothing yet.
 
 The owner's first look at the window brought small changes (MAC-55): the app's name shows once, centered; freshness, the version and commit, and the layout menu sit at the right end of the title bar; the footer is gone; the list's width can be dragged; and a row above the list picks one of three fixed views, "Needs my review", "Mine" and "Everything open". The views are plain predicates until the filter language exists.
+
+Configuration has started (MAC-56, the first step of MAC-40). Settings live as JSON files in a configuration folder that the app watches and keeps in git, the Settings window writes those files, and `github-pr-explorer-ctl config` and `layouts` read and change them. Answers 11 and 12 below were built as defaults. Still to come for MAC-40: views, layout rules, and teams' facts and actions as files, MCP, and the command line's filter, rule and action commands.
 
 ## What the research says
 
@@ -133,8 +135,10 @@ Each has a recommendation. An answer moves to `planning/decided.md`.
 
 11. **What format are the configuration files?** It has to be easy for a person to read, easy for an agent to write correctly, and checkable against a schema.
     Recommendation: JSON with a published JSON Schema, one file per thing. Agents write it reliably and the schema catches mistakes. TOML reads better by eye, so this is a taste call.
+    Built as the default in MAC-56 while this waits for your answer: `settings.json` and `layouts/*.json`, with schemas in `schemas/`. Changing format later means a reader for the old one.
 12. **How is configuration history kept?** You asked for something minimal, built in from the start.
     Recommendation: the configuration folder is a local git repository and the app commits every valid change. That gives history, diffs, and restore for free, agents already know git, and a team can later share the folder by adding a remote.
+    Built as the default in MAC-56 while this waits for your answer. Settings, History and `config history`, `diff` and `restore` sit on it.
 13. **May a shared configuration run scripts?** A script from a teammate's configuration is code running on your Mac.
     Recommendation: patterns and listed effects run without asking. A script runs only after the person has approved that exact file, and is asked again when it changes.
 14. **How much is "90%"?** Sign-in and macOS permission prompts cannot be done by an agent.

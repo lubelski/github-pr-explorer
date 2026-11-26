@@ -156,4 +156,6 @@ extension EnvironmentValues {
     @Entry var isRenderingPreview = false
     /// A render opens every "N more" row, to show long blocks in full.
     @Entry var previewExpandsBlocks = false
+    /// Whether Activity starts with bot events folded away. The setting is in `settings.json`.
+    @Entry var hidesBotEventsInActivity = true
 }

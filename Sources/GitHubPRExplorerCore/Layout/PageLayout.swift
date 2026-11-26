@@ -73,6 +73,10 @@ public struct BlockPlacement: Codable, Sendable, Hashable {
 
 /// How much a block shows. Every block works at both sizes.
 public enum BlockSize: String, Codable, Sendable, Hashable, CaseIterable {
+    public init(from decoder: any Decoder) throws {
+        self = try decodeNamedValue(decoder, as: BlockSize.self)
+    }
+
     /// A line or two: a summary of the block.
     case small
     /// The block's full content.
@@ -147,11 +151,12 @@ public struct LayoutFileError: Error, Sendable, Hashable, CustomStringConvertibl
 extension PageLayout {
     /// Reads a layout file. Every layout, built in or not, comes through here.
     public static func decode(_ data: Data, fileName: String) throws(LayoutFileError) -> PageLayout {
+        try JSONKeyCheck.check(data, fileName: fileName, allowed: JSONKeyCheck.layoutShape)
         let layout: PageLayout
         do {
             layout = try GitHubPRExplorerJSON.decoder().decode(PageLayout.self, from: data)
         } catch let error as DecodingError {
-            throw describe(error, fileName: fileName)
+            throw LayoutFileError.describe(error, fileName: fileName)
         } catch {
             throw LayoutFileError(fileName: fileName, problem: error.localizedDescription)
         }
@@ -173,6 +178,10 @@ extension PageLayout {
         if id.trimmingCharacters(in: .whitespaces).isEmpty {
             throw LayoutFileError(fileName: fileName, path: "id", problem: "the id is empty")
         }
+        if !Self.isValidID(id) {
+            throw LayoutFileError(fileName: fileName, path: "id",
+                                  problem: "the id \"\(id)\" must be lowercase letters, digits and hyphens, starting with a letter or digit, such as \"my-layout\"")
+        }
         if name.trimmingCharacters(in: .whitespaces).isEmpty {
             throw LayoutFileError(fileName: fileName, path: "name", problem: "the name is empty")
         }
@@ -190,7 +199,18 @@ extension PageLayout {
         }
     }
 
-    private static func describe(_ error: DecodingError, fileName: String) -> LayoutFileError {
+    /// Lowercase letters, digits and hyphens, starting with a letter or digit: safe as a file
+    /// name, since a layout in the configuration folder is stored as `layouts/<id>.json`.
+    public static func isValidID(_ id: String) -> Bool {
+        guard let first = id.unicodeScalars.first, !id.isEmpty, id.count <= 100 else { return false }
+        func allowed(_ c: Unicode.Scalar) -> Bool { ("a"..."z").contains(c) || ("0"..."9").contains(c) }
+        return allowed(first) && id.unicodeScalars.allSatisfy { allowed($0) || $0 == "-" }
+    }
+}
+
+extension LayoutFileError {
+    /// Says where in a file a decoding error is, and what is wrong, in plain words.
+    static func describe(_ error: DecodingError, fileName: String) -> LayoutFileError {
         func path(_ codingPath: [any CodingKey]) -> String {
             var text = ""
             for key in codingPath {
@@ -220,7 +240,7 @@ extension PageLayout {
         }
     }
 
-    private static func readable(_ type: Any.Type) -> String {
+    static func readable(_ type: Any.Type) -> String {
         switch type {
         case is String.Type: "text"
         case is Int.Type: "a whole number"

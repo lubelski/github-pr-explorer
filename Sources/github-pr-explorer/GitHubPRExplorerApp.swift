@@ -27,6 +27,7 @@ struct GitHubPRExplorerApp: App {
         let sync = SyncModel(app: model)
         // Opening a pull request asks the sync to fetch it sooner. It is never a fetch.
         model.onSelect = { [weak sync] id in sync?.requestSooner(id) }
+        model.onSyncNow = { [weak sync] in sync?.syncNow() }
         // Every change, from Settings, a hand edit or ctl, reaches the open window at once.
         configuration.onApply = { [weak model] snapshot, previous in
             model?.apply(snapshot, previous: previous)

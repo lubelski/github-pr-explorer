@@ -9,7 +9,6 @@ struct ThreadPane: View {
     let thread: ReviewThread
     let now: Date
 
-    private let notConnected = "Not connected to GitHub yet"
     @Environment(\.shorthands) private var shorthands
 
     var body: some View {
@@ -111,14 +110,14 @@ struct ThreadPane: View {
                 .padding(8)
                 .background(RoundedRectangle(cornerRadius: 6).strokeBorder(Style.hairline, lineWidth: 1))
                 .disabled(true)
-                .help(notConnected)
+                .help(ReadOnlyNote.help)
             HStack {
                 Button("Resolve") {}
-                    .help(notConnected)
+                    .help(ReadOnlyNote.help)
                 Spacer()
                 Button("Reply") {}
                     .buttonStyle(.borderedProminent)
-                    .help(notConnected)
+                    .help(ReadOnlyNote.help)
             }
             .controlSize(.large)
             .disabled(true)

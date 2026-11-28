@@ -97,7 +97,6 @@ extension EnvironmentValues {
 struct PageHeader: View {
     let model: AppModel
     let pullRequest: PullRequest
-    private let notConnected = "Not connected to GitHub yet"
 
     var body: some View {
         let pr = pullRequest
@@ -105,11 +104,6 @@ struct PageHeader: View {
         HStack(alignment: .top, spacing: 24) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    if !model.showsList {
-                        Button { model.showsList = true } label: { Image(systemName: "sidebar.left") }
-                            .buttonStyle(.borderless)
-                            .help("Show the pull request list")
-                    }
                     ShortenedName(model.shorthands.reference(of: pr))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
@@ -133,12 +127,12 @@ struct PageHeader: View {
                     Button("Request changes") {}
                     Button("Comment") {}
                     Button("Merge") {}
-                        .help(pr.mergeUnavailableReason ?? notConnected)
+                        .help(pr.mergeUnavailableReason ?? ReadOnlyNote.help)
                 }
                 .controlSize(.large)
                 .disabled(true)
-                .help(notConnected)
-                Text(pr.mergeUnavailableReason.map { "\($0) · \(notConnected)" } ?? notConnected)
+                .help(ReadOnlyNote.help)
+                Text(pr.mergeUnavailableReason.map { "\($0) · \(ReadOnlyNote.short)" } ?? ReadOnlyNote.short)
                     .font(Style.secondary)
                     .foregroundStyle(.secondary)
             }

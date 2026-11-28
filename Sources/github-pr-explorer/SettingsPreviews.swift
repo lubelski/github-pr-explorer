@@ -266,6 +266,20 @@ enum SettingsPreviews {
             State(name: "shorthands-search", size: CGSize(width: 1560, height: 940)) {
                 shorthandWindow(shorthandStore()) { $0.searchText = "Web Ada" }
             },
+            // The grouped list: a repository's shorthand names its section, and a person's
+            // shorthand names their author section.
+            State(name: "shorthands-group-repository", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { $0.listGrouping = .repository }
+            },
+            // Every author section collapsed but the one holding the selection, so their
+            // headers show, among them Ada's under her shorthand.
+            State(name: "shorthands-group-author", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { app in
+                    app.listGrouping = .author
+                    app.setAllSections(collapsed: true)
+                    app.selection = app.listedPullRequests.first { $0.author.login == MockCast.adaPark.login }?.id
+                }
+            },
             // The page's other tabs, where threads, owners and metadata draw names.
             State(name: "shorthands-page-tabbed-threads", size: CGSize(width: 1560, height: 940)) {
                 shorthandWindow(shorthandStore()) { app in

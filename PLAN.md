@@ -2,7 +2,7 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after shorthands (MAC-73).
+Last updated 2026-11-27, after shorthands (MAC-73) and grouping the list (MAC-100).
 
 ## Where we are
 
@@ -20,7 +20,11 @@ Configuration has started (MAC-56, the first step of MAC-40). Settings live as J
 
 Real pull requests can be read (MAC-59), behind a setting that is off by default. `pullRequestSource` in `settings.json` is `mock` or `github`. With `github`, `GitHubSync` in the core library, the only part that uses the network, reads open pull requests that involve the signed-in person, and every open one in the watched repositories, through the `gh` login. It fetches in tiers: a light list pass on a timer, then detail, computed fields in small batches, and per-file patches from REST for pull requests that are new, changed, or opened. It is read-only and keeps to half of each hourly rate limit. The index is saved as one JSON file beside the configuration folder, the window opens on it before the first fetch returns, and the title bar says plainly when `gh` is missing, signed out, offline or rate limited. Settings has a GitHub section, and `ctl sync run`, `sync check` and `sync status` do the same from the command line. One real sync of 32 pull requests took 67 requests and about 39 seconds, and a sync with nothing changed took 10 requests. Still to come: the probes below, a database in place of the JSON file, push, and actions.
 
-Shorthands are built (MAC-73): short names the person sets for repositories and people, such as Web for `acme/web`, drawn in place of the full name everywhere the app labels one, with the full name on hover. They live in `shorthands.json`, Settings has a Shorthands section, and `ctl shorthands` lists, sets and removes them. With none set the app looks as it did. The choices made on the owner's behalf are in `planning/decided.md` for him to overrule. MCP for shorthands waits with MCP for every other setting.
+The owner's first run on real pull requests brought four changes to the main window (MAC-69). The sidebar button sits in the title bar just after the window buttons. A filter menu at the end of the views row narrows the list by status, repository, author, review state and drafts, as plain predicates until the filter language exists. Each list row has three lines, the title, the repository and number with the author, and the status's detail, beside a short colored badge for the state. The layout menu became a cog menu with Layout, Sync Now, Settings and Check for Updates.
+
+The list can be grouped (MAC-100). A group by button beside the filter button draws the list in sections by repository, author, status or review state, each headed by its name in bold and its count, so pull requests from several repositories can be read one repository at a time without filtering down to one. A section collapses and expands in place with the system's own disclosure control or a click on its header, and Option-click does every section. Grouping arranges the rows and keeps none out, so it is not a filter and has no syntax. The choice and which sections are collapsed are remembered as window state, like the view.
+
+Shorthands are built (MAC-73): short names the person sets for repositories and people, such as Web for `acme/web`, drawn in place of the full name everywhere the app labels one, with the full name on hover. They live in `shorthands.json`, Settings has a Shorthands section, and `ctl shorthands` lists, sets and removes them. In the grouped list a repository's or an author's section is headed by its shorthand, still in the order of the full names. With none set the app looks as it did. The choices made on the owner's behalf are in `planning/decided.md` for him to overrule. MCP for shorthands waits with MCP for every other setting.
 
 ## What the research says
 

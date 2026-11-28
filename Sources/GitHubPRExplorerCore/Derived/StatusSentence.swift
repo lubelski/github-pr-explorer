@@ -63,19 +63,34 @@ public struct StatusSentence: Codable, Sendable, Hashable {
     public var sentence: String
     public var reasons: [String]
     public var isReviewRequestedFromViewer: Bool
+    /// What lies behind the state, for a line under the title where a badge already names the
+    /// state: "e2e-chrome failed, 3 threads unresolved" beside "Blocked". It does not repeat the
+    /// badge and leaves out "Review requested from you". See `init(pullRequest:viewer:now:)`.
+    public var detail: String
 
     /// The symbol and the sentence, as a list row shows them.
     public var text: String { "\(symbol.rawValue) \(sentence)" }
 
-    public init(state: State, symbol: Symbol, sentence: String, reasons: [String], isReviewRequestedFromViewer: Bool) {
+    /// The short label for the state, such as "Blocked".
+    public var badge: Badge { Badge(state) }
+
+    /// `detail` defaults to the sentence.
+    public init(state: State, symbol: Symbol, sentence: String, reasons: [String], isReviewRequestedFromViewer: Bool,
+                detail: String? = nil) {
         self.state = state
         self.symbol = symbol
         self.sentence = sentence
         self.reasons = reasons
         self.isReviewRequestedFromViewer = isReviewRequestedFromViewer
+        self.detail = detail ?? sentence
     }
 
     /// Works out the status. `now` times running checks, so the result never reads the clock.
+    ///
+    /// The detail is the headline, except where the headline would only repeat the badge:
+    /// blocked lists its blockers alone, a draft lists what else was found ("Not ready for
+    /// review" when nothing was), the merge queue gives the position, and ready to merge says
+    /// how it got there ("Approved, 3 checks passed").
     public init(pullRequest pr: PullRequest, viewer: Viewer, now: Date) {
         switch pr.state {
         case .merged:
@@ -92,11 +107,15 @@ public struct StatusSentence: Codable, Sendable, Hashable {
         let state: State
         let symbol: Symbol
         let headline: String
+        var detail: String?
 
         if pr.isDraft {
             (state, symbol, headline) = (.draft, .emptyCircle, "Draft")
+            let others = facts.reasons.filter { $0 != "draft" && $0 != Facts.requestedFromViewerReason }
+            detail = others.isEmpty ? "Not ready for review" : Self.firstWordCapitalized(others).joined(separator: ", ")
         } else if let position = pr.mergeState.mergeQueuePosition {
             (state, symbol, headline) = (.inMergeQueue, .filledCircle, "In the merge queue, position \(position)")
+            detail = "Position \(position) in the merge queue"
         } else if facts.hasConflicts || !facts.failedRequired.isEmpty {
             var blockers: [String] = []
             if facts.hasConflicts { blockers.append(Facts.conflictsReason) }
@@ -104,6 +123,7 @@ public struct StatusSentence: Codable, Sendable, Hashable {
             if facts.hasChangesRequested { blockers.append(Facts.changesRequestedReason) }
             if facts.unresolvedCount > 0 { blockers.append(facts.unresolvedReason) }
             (state, symbol, headline) = (.blocked, .cross, "Blocked: " + blockers.joined(separator: ", "))
+            detail = Self.firstWordCapitalized(blockers).joined(separator: ", ")
         } else if facts.hasChangesRequested {
             (state, symbol, headline) = (.changesRequested, .cross, "Changes requested")
         } else if let minutes = facts.runningMinutes {
@@ -124,11 +144,23 @@ public struct StatusSentence: Codable, Sendable, Hashable {
             (state, symbol, headline) = (.mergeabilityUnknown, .halfCircle, "Checking for conflicts")
         } else {
             (state, symbol, headline) = (.readyToMerge, .check, "Ready to merge")
+            let review = pr.reviewDecision == .approved ? "Approved" : "No review required"
+            let passed = pr.checks.count { $0.state == .passed }
+            let checks = passed == 0 ? "no checks" : "\(passed) \(passed == 1 ? "check" : "checks") passed"
+            detail = review + ", " + checks
         }
 
         let asksViewer = !pr.isDraft && facts.isRequestedFromViewer
         let sentence = asksViewer ? headline + ". " + Facts.requestedFromViewerSentence : headline
-        self.init(state: state, symbol: symbol, sentence: sentence, reasons: facts.reasons, isReviewRequestedFromViewer: asksViewer)
+        self.init(state: state, symbol: symbol, sentence: sentence, reasons: facts.reasons,
+                  isReviewRequestedFromViewer: asksViewer, detail: detail ?? headline)
+    }
+
+    /// Capitalizes the first phrase when it is one of the fixed ones, such as "merge conflicts".
+    /// A check's name is kept as written, so "e2e-chrome failed" stays in lower case.
+    private static func firstWordCapitalized(_ phrases: [String]) -> [String] {
+        guard let first = phrases.first, Facts.fixedPhrases.contains(where: first.hasPrefix) else { return phrases }
+        return [first.capitalizedFirst] + phrases.dropFirst()
     }
 
     /// The conditions the precedence reads, worked out once.
@@ -136,6 +168,11 @@ public struct StatusSentence: Codable, Sendable, Hashable {
         static let conflictsReason = "merge conflicts"
         static let changesRequestedReason = "changes requested"
         static let requestedFromViewerSentence = "Review requested from you."
+        static let requestedFromViewerReason = "review requested from you"
+        /// Phrases this type writes itself, which may start a detail with a capital letter.
+        /// Anything else at the start is a check's name.
+        static let fixedPhrases = [conflictsReason, changesRequestedReason, "in the merge queue", "waiting on",
+                                   "needs a review", "behind ", "checking for conflicts", "draft"]
 
         let pr: PullRequest
         let now: Date
@@ -195,7 +232,7 @@ public struct StatusSentence: Codable, Sendable, Hashable {
             if pendingReviewerCount == 0 && pr.reviewDecision == .reviewRequired { reasons.append("needs a review") }
             if pr.mergeState.isBehindBase { reasons.append("behind \(pr.baseBranch)") }
             if pr.mergeState.mergeability == .unknown { reasons.append("checking for conflicts") }
-            if isRequestedFromViewer { reasons.append("review requested from you") }
+            if isRequestedFromViewer { reasons.append(Self.requestedFromViewerReason) }
             return reasons
         }
 
@@ -210,6 +247,116 @@ public struct StatusSentence: Codable, Sendable, Hashable {
         static func runningPhrase(_ minutes: Int) -> String {
             minutes < 1 ? "running under 1 min" : "running \(minutes) min"
         }
+    }
+}
+
+extension StatusSentence {
+    /// The state in one short word or two, for a badge beside a list row and for the list's
+    /// status filter. Several states share a badge where the difference is in the detail line:
+    /// CI running and checks queued are both "Running", and waiting on reviewers and needing a
+    /// review are both "Waiting". The cases are in the status sentence's precedence order.
+    public enum Badge: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
+        case draft
+        case merging
+        case blocked
+        case changesRequested
+        case running
+        case failing
+        case threads
+        case waiting
+        case behind
+        case checking
+        case ready
+        case merged
+        case closed
+
+        /// How a badge is colored. The words carry the meaning, the color only helps.
+        public enum Tone: String, Codable, Sendable, Hashable, CaseIterable {
+            /// Can be merged: green.
+            case positive
+            /// Stopped until someone acts: red.
+            case negative
+            /// Something is under way: blue.
+            case progress
+            /// Not stopped, but something needs a look: orange.
+            case attention
+            /// Not in play: gray.
+            case neutral
+            /// Merged: purple, as GitHub shows it.
+            case done
+        }
+
+        public var id: String { rawValue }
+
+        public init(_ state: State) {
+            self = switch state {
+            case .merged: .merged
+            case .closed: .closed
+            case .draft: .draft
+            case .inMergeQueue: .merging
+            case .blocked: .blocked
+            case .changesRequested: .changesRequested
+            case .checksRunning, .checksQueued: .running
+            case .optionalChecksFailed: .failing
+            case .threadsUnresolved: .threads
+            case .waitingOnReviewers, .needsReview: .waiting
+            case .behindBase: .behind
+            case .mergeabilityUnknown: .checking
+            case .readyToMerge: .ready
+            }
+        }
+
+        /// The badge's text, at most eight letters.
+        public var label: String {
+            switch self {
+            case .draft: "Draft"
+            case .merging: "Merging"
+            case .blocked: "Blocked"
+            case .changesRequested: "Changes"
+            case .running: "Running"
+            case .failing: "Failing"
+            case .threads: "Threads"
+            case .waiting: "Waiting"
+            case .behind: "Behind"
+            case .checking: "Checking"
+            case .ready: "Ready"
+            case .merged: "Merged"
+            case .closed: "Closed"
+            }
+        }
+
+        /// A longer name, for the status filter's menu and for tooltips.
+        public var name: String {
+            switch self {
+            case .draft: "Draft"
+            case .merging: "In the merge queue"
+            case .blocked: "Blocked"
+            case .changesRequested: "Changes requested"
+            case .running: "CI running or queued"
+            case .failing: "A check that is not required failed"
+            case .threads: "Threads unresolved"
+            case .waiting: "Waiting on a review"
+            case .behind: "Behind the base branch"
+            case .checking: "Checking for conflicts"
+            case .ready: "Ready to merge"
+            case .merged: "Merged"
+            case .closed: "Closed"
+            }
+        }
+
+        public var tone: Tone {
+            switch self {
+            case .ready: .positive
+            case .blocked, .changesRequested: .negative
+            case .running, .merging: .progress
+            case .failing, .threads, .waiting, .behind, .checking: .attention
+            case .draft, .closed: .neutral
+            case .merged: .done
+            }
+        }
+
+        /// The states that show this badge.
+        public var states: [State] { State.allCases.filter { Badge($0) == self } }
     }
 }
 

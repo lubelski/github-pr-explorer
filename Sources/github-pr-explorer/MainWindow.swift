@@ -4,9 +4,10 @@ import SwiftUI
 /// The main window: the pull request list on the left and the selected pull request's page.
 ///
 /// The list sits in a plain row rather than a split view, so the window keeps the standard
-/// title bar with no toolbar. It collapses with View > Hide Pull Request List, or its button.
-/// Its width follows a drag on its trailing edge. Status and the layout menu sit at the right
-/// end of the title bar. There is no footer.
+/// title bar with no toolbar. It collapses with View > Hide Pull Request List, or the sidebar
+/// button just after the window buttons, which stays there while the list is hidden. Its width
+/// follows a drag on its trailing edge. Status and the window's menu sit at the right end of
+/// the title bar. There is no footer.
 struct MainWindowView: View {
     @Bindable var model: AppModel
     /// The updater, for the indicator in the title bar when an update waits.
@@ -21,6 +22,7 @@ struct MainWindowView: View {
     static let compactTitleBarWidth: CGFloat = 1200
 
     @State private var windowWidth: CGFloat = 0
+    @Environment(\.openSettings) private var openSettings
 
     var body: some View {
         GeometryReader { proxy in
@@ -29,7 +31,10 @@ struct MainWindowView: View {
         .background(Style.pageBackground)
         .onGeometryChange(for: CGFloat.self, of: \.size.width) { windowWidth = $0 }
         .standardTitleBar {
-            TitleBarStatus(model: model, updater: updater, compact: windowWidth < Self.compactTitleBarWidth)
+            SidebarButton(model: model)
+        } trailing: {
+            TitleBarStatus(model: model, updater: updater, compact: windowWidth < Self.compactTitleBarWidth,
+                           openSettings: { openSettings() })
         }
     }
 
@@ -58,6 +63,26 @@ struct MainWindowView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+    }
+}
+
+/// The button that shows and hides the list, in the title bar just after the window buttons.
+struct SidebarButton: View {
+    @Bindable var model: AppModel
+
+    var body: some View {
+        Button {
+            withAnimation(.snappy) { model.showsList.toggle() }
+        } label: {
+            Image(systemName: "sidebar.left")
+                .font(.system(size: 13))
+                .frame(width: 24, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(.secondary)
+        .help(model.showsList ? "Hide the pull request list (Control-Command-S)" : "Show the pull request list (Control-Command-S)")
+        .accessibilityLabel(model.showsList ? "Hide Pull Request List" : "Show Pull Request List")
     }
 }
 
@@ -110,29 +135,42 @@ struct PullRequestList: View {
     var body: some View {
         let listed = model.listedPullRequests
         VStack(spacing: 0) {
-            HStack(spacing: 6) {
-                searchField
-                Button {
-                    withAnimation(.snappy) { model.showsList = false }
-                } label: {
-                    Image(systemName: "sidebar.left")
-                }
-                .buttonStyle(.borderless)
-                .help("Hide the pull request list")
+            searchField
+                .padding(.horizontal, 10)
+                .padding(.top, 10)
+                .padding(.bottom, 8)
+
+            HStack(spacing: 4) {
+                ListViewPicker(model: model)
+                ListGroupingMenu(model: model)
+                ListFilterMenu(model: model)
             }
             .padding(.leading, 10)
-            .padding(.trailing, 12)
-            .padding(.top, 10)
+            .padding(.trailing, 8)
             .padding(.bottom, 8)
 
-            ListViewPicker(model: model)
-                .padding(.horizontal, 10)
-                .padding(.bottom, 8)
+            if !model.listFilter.isEmpty {
+                ActiveFiltersLine(model: model)
+                    .padding(.leading, 12)
+                    .padding(.trailing, 8)
+                    .padding(.bottom, 7)
+            }
 
             Divider()
 
             if listed.isEmpty {
-                if model.searchText.isEmpty {
+                if !model.listFilter.isEmpty {
+                    ContentUnavailableView {
+                        Label("No Matches", systemImage: "line.3.horizontal.decrease.circle")
+                    } description: {
+                        Text(model.searchText.isEmpty
+                             ? "Nothing in \u{201C}\(model.listView.name)\u{201D} matches the filters."
+                             : "Nothing in \u{201C}\(model.listView.name)\u{201D} matches the search and the filters.")
+                    } actions: {
+                        Button("Clear Filters") { model.listFilter = .none }
+                    }
+                    .frame(maxHeight: .infinity)
+                } else if model.searchText.isEmpty {
                     ContentUnavailableView(emptyTitle, systemImage: "tray",
                                            description: Text("Nothing in \u{201C}\(model.listView.name)\u{201D} right now."))
                         .frame(maxHeight: .infinity)
@@ -143,13 +181,16 @@ struct PullRequestList: View {
             } else {
                 ScrollViewReader { proxy in
                 List(selection: rendering ? .constant(nil) : $model.selection) {
-                    ForEach(listed) { pr in
-                        PullRequestRow(pullRequest: pr, status: model.status(for: pr), shorthands: model.shorthands)
-                            .tag(pr.id)
-                            .id(pr.id)
-                            .listRowBackground(rendering && model.selection == pr.id
-                                ? RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)).padding(.horizontal, 8)
-                                : nil)
+                    if model.listGrouping == .none {
+                        rows(listed)
+                    } else {
+                        ForEach(model.listSections) { section in
+                            Section(isExpanded: expanded(section.id)) {
+                                rows(section.pullRequests)
+                            } header: {
+                                ListSectionHeader(model: model, section: section)
+                            }
+                        }
                     }
                 }
                 .listStyle(.sidebar)
@@ -161,6 +202,28 @@ struct PullRequestList: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Style.surface)
+    }
+
+    /// Whether a section is expanded, for the system's own disclosure control.
+    private func expanded(_ id: String) -> Binding<Bool> {
+        Binding {
+            !model.collapsedSections.contains(id)
+        } set: { isExpanded in
+            if isExpanded { model.collapsedSections.remove(id) } else { model.collapsedSections.insert(id) }
+        }
+    }
+
+    private func rows(_ pullRequests: [PullRequest]) -> some View {
+        ForEach(pullRequests) { pr in
+            PullRequestRow(pullRequest: pr, status: model.status(for: pr),
+                           isViewer: model.index.viewer.isViewer(pr.author),
+                           shorthands: model.shorthands)
+                .tag(pr.id)
+                .id(pr.id)
+                .listRowBackground(rendering && model.selection == pr.id
+                    ? RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)).padding(.horizontal, 8)
+                    : nil)
+        }
     }
 
     private var emptyTitle: String {
@@ -254,27 +317,66 @@ struct ListViewPicker: View {
     }
 }
 
+/// One pull request in the list, in three lines: the title across the full width, which may
+/// wrap to a second line; then the repository, number and author, and the detail of the
+/// status, with a badge for the state at the right of those two lines. The detail reads like
+/// "e2e-chrome failed, 3 threads unresolved". A long repository name gives way in the middle,
+/// and the author is left out before the number is ever hidden.
 struct PullRequestRow: View {
     let pullRequest: PullRequest
     let status: StatusSentence
+    /// The viewer wrote it, so the author shows as "you".
+    var isViewer = false
+    /// Short names for the repository and the author. The hover keeps the full names.
     var shorthands: Shorthands = .none
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 7) {
-            StatusMark(systemName: status.symbol.systemName, color: status.symbol.color)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(pullRequest.title)
-                    .font(.system(size: 13))
-                    .lineLimit(1)
-                let reference = shorthands.reference(of: pullRequest)
-                Text(verbatim: "\(reference.text) · \(status.sentence)")
-                    .font(Style.secondary)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-                    .accessibilityLabel(reference.isShortened ? "\(reference.accessibilityLabel) · \(status.sentence)" : "\(reference.text) · \(status.sentence)")
+        VStack(alignment: .leading, spacing: 2) {
+            Text(pullRequest.title)
+                .font(.system(size: 13))
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 1)
+            HStack(alignment: .center, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    repositoryLine
+                    Text(status.detail)
+                        .font(Style.secondary)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                StatusBadge(badge: status.badge)
             }
         }
-        .padding(.vertical, 3)
-        .help("\(pullRequest.title)\n\(shorthands.reference(of: pullRequest).help.map { $0 + "\n" } ?? "")\(status.text)")
+        .padding(.vertical, 4)
+        .help("\(pullRequest.title)\n\(pullRequest.repository.fullName) #\(pullRequest.number) by \(pullRequest.author.displayName)\n\(status.text)")
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "acme/api #4826 · Ada Park", or without the author when that does not fit. A shorthand
+    /// takes the place of the repository's or the author's name, as in "API #4826 · Ada".
+    private var repositoryLine: some View {
+        let repository = shorthands.name(for: pullRequest.repository).text
+        return ViewThatFits(in: .horizontal) {
+            HStack(spacing: 0) {
+                Text(verbatim: repository)
+                Text(verbatim: " #\(pullRequest.number)")
+                Text(verbatim: " · ").foregroundStyle(.tertiary)
+                Text(isViewer ? "you" : shorthands.name(for: pullRequest.author).text)
+            }
+            .fixedSize()
+            HStack(spacing: 0) {
+                Text(verbatim: repository)
+                    .truncationMode(.middle)
+                Text(verbatim: " #\(pullRequest.number)")
+                    .fixedSize()
+                    .layoutPriority(1)
+            }
+        }
+        .font(Style.secondary)
+        .foregroundStyle(.secondary)
+        .lineLimit(1)
     }
 }

@@ -146,6 +146,14 @@ final class SyncModel {
         Task { await sync.requestSooner(id) }
     }
 
+    /// Sync Now in the title bar's menu: in GitHub mode, the next tick runs the list pass. It
+    /// keeps to the sync's rules, so a rate limit or a paused budget still waits. In mock mode
+    /// it does nothing.
+    func syncNow() {
+        guard source == .github, let sync else { return }
+        Task { await sync.runSoon() }
+    }
+
     /// Check Again in Settings: in GitHub mode, the next tick runs the list pass. In mock mode,
     /// one login check, so Settings can say whose login it is before the switch is turned on.
     func checkAgain() {

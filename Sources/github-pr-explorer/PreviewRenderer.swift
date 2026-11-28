@@ -236,6 +236,14 @@ enum PreviewRenderer {
                 model.listGrouping = .repository
                 return model
             },
+            // Two sections collapsed, one of them not the first.
+            State(name: "list-group-repository-collapsed") {
+                let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
+                model.listView = .mine
+                model.listGrouping = .repository
+                model.collapsedSections = ["repository:acme/docs", "repository:acme/infra"]
+                return model
+            },
             State(name: "list-group-repository-everything-open") {
                 let model = model(example)
                 model.listView = .everythingOpen

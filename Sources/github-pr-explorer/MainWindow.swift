@@ -185,10 +185,10 @@ struct PullRequestList: View {
                         rows(listed)
                     } else {
                         ForEach(model.listSections) { section in
-                            Section {
+                            Section(isExpanded: expanded(section.id)) {
                                 rows(section.pullRequests)
                             } header: {
-                                ListSectionHeader(section: section)
+                                ListSectionHeader(model: model, section: section)
                             }
                         }
                     }
@@ -202,6 +202,15 @@ struct PullRequestList: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Style.surface)
+    }
+
+    /// Whether a section is expanded, for the system's own disclosure control.
+    private func expanded(_ id: String) -> Binding<Bool> {
+        Binding {
+            !model.collapsedSections.contains(id)
+        } set: { isExpanded in
+            if isExpanded { model.collapsedSections.remove(id) } else { model.collapsedSections.insert(id) }
+        }
     }
 
     private func rows(_ pullRequests: [PullRequest]) -> some View {

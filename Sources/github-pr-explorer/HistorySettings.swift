@@ -73,6 +73,7 @@ extension ConfigurationVersion {
         case ChangeAuthor.editedOnDisk.rawValue: "Edited on disk"
         case ChangeAuthor.commandLine.rawValue: "github-pr-explorer-ctl"
         case ChangeAuthor.app.rawValue: "The app"
+        case ChangeAuthor.mainWindow.rawValue: "The main window"
         default: author
         }
     }
@@ -82,6 +83,7 @@ extension ConfigurationVersion {
         case ChangeAuthor.settingsWindow.rawValue: "gearshape"
         case ChangeAuthor.editedOnDisk.rawValue: "doc.text"
         case ChangeAuthor.commandLine.rawValue: "terminal"
+        case ChangeAuthor.mainWindow.rawValue: "list.bullet"
         default: "app"
         }
     }

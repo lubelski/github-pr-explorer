@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/lubelski/github-pr-explorer/schemas/shorthands.schema.json",
   "title": "github-pr-explorer shorthands",
-  "description": "shorthands.json in the configuration folder (~/Library/Application Support/github-pr-explorer/config): short names the app draws in place of repositories and people, such as Web for acme/web. Display only: titles, descriptions, comments, links, copied values and anything sent to GitHub are unchanged. A missing file means no shorthands. The app's Settings window and `github-pr-explorer-ctl shorthands` write this file. A key not listed here makes the file invalid, and the app keeps using the last version that worked. Two shorthands for the same thing also make it invalid, which this schema cannot check. Two things that share one shorthand are allowed, with a warning.",
+  "description": "shorthands.json in the configuration folder (~/Library/Application Support/github-pr-explorer/config): short names the app draws in place of repositories, people and organizations, such as Web for acme/web. Display only: titles, descriptions, comments, links, copied values and anything sent to GitHub are unchanged. A missing file means no shorthands. The app's Settings window, Set Shorthand in the pull request list, `github-pr-explorer-ctl shorthands` and its MCP tools write this file. A key not listed here makes the file invalid, and the app keeps using the last version that worked. Two shorthands for the same thing also make it invalid, which this schema cannot check. Two things that share one shorthand are allowed, with a warning.",
   "type": "object",
   "required": ["formatVersion", "shorthands"],
   "additionalProperties": false,
@@ -29,12 +29,12 @@
       "additionalProperties": false,
       "properties": {
         "kind": {
-          "description": "What the shorthand stands for: repository, matched by owner/name, or person, matched by login.",
+          "description": "What the shorthand stands for: repository, matched by owner/name; person, matched by login; or organization, matched by its name. A repository with no shorthand of its own whose organization has one is drawn as Shorthand/name.",
           "type": "string",
-          "enum": ["repository", "person"]
+          "enum": ["repository", "person", "organization"]
         },
         "for": {
-          "description": "The thing's identity: owner/name for a repository, such as acme/web, or the login for a person, such as ada-park, without @.",
+          "description": "The thing's identity: owner/name for a repository, such as acme/web, the login for a person, such as ada-park, or the name for an organization, such as acme, without @.",
           "type": "string",
           "pattern": "^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+|[A-Za-z0-9][A-Za-z0-9-]*(\\[bot\\])?)$"
         },

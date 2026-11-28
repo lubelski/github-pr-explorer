@@ -5,8 +5,9 @@ import GitHubPRExplorerCore
 /// output, so an agent in a chat can do what `ctl` does without a shell.
 ///
 /// It speaks JSON-RPC 2.0, one message per line, and offers tools. Today the tools are the
-/// saved filters, the first setting to come with MCP. They call the same functions as
-/// `ctl filters`, so the two always agree, and every change is recorded in the configuration's
+/// saved filters, the first setting to come with MCP, and shorthands
+/// (`MCPServer+Shorthands.swift`). They call the same functions as `ctl filters` and
+/// `ctl shorthands`, so the two always agree, and every change is recorded in the configuration's
 /// history as made by "MCP". The other settings join it as tools in later changes.
 extension ControlCommand {
     static let mcpHelp = """
@@ -101,7 +102,7 @@ final class MCPServer {
                 "protocolVersion": version,
                 "capabilities": ["tools": ["listChanged": false]],
                 "serverInfo": ["name": "github-pr-explorer", "version": "1"],
-                "instructions": "Saved filters for github-pr-explorer's pull request list. Everything is built in and always first. Try a filter with filter_evaluate before saving it. Filters use one language: sets joined by OR, each holding conditions joined by AND.",
+                "instructions": "Saved filters and shorthands for github-pr-explorer's pull request list. Everything is built in and always first. Try a filter with filter_evaluate before saving it. Filters use one language: sets joined by OR, each holding conditions joined by AND.",
             ]
         case "ping":
             result = [:]
@@ -238,7 +239,7 @@ final class MCPServer {
             }
 
         default:
-            return .failure(.init("There is no tool \(name)."))
+            return callShorthandTool(name, arguments) ?? .failure(.init("There is no tool \(name)."))
         }
     }
 
@@ -349,5 +350,5 @@ final class MCPServer {
         Tool(name: "saved_filter_remove",
              description: "Remove a saved filter. The configuration's history keeps it, so it can be restored.",
              inputSchema: ["type": "object", "required": ["id"], "properties": ["id": ["type": "string"]]], readOnly: false),
-    ] }
+    ] + shorthandTools }
 }

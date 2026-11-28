@@ -1,7 +1,8 @@
 import Foundation
 
 /// What a shorthand stands for. A shorthand matches its thing exactly, by the thing's identity:
-/// a repository by `owner/name`, a person by login. There are no patterns.
+/// a repository by `owner/name`, a person by login, an organization by its name. There are no
+/// patterns.
 ///
 /// Each shorthand in `shorthands.json` names its kind, so another kind, such as a proper noun,
 /// is a new case here and a new value in the file, and the file keeps its shape.
@@ -10,6 +11,9 @@ public enum ShorthandKind: String, Codable, Sendable, Hashable, CaseIterable, Id
     case repository
     /// A person, bot or agent, matched by login, such as `ada-park`.
     case person
+    /// An organization or other account that owns repositories, matched by its name, such as
+    /// `acme`. Added after the first two, so a file written before it still reads.
+    case organization
 
     public var id: String { rawValue }
 
@@ -22,6 +26,7 @@ public enum ShorthandKind: String, Codable, Sendable, Hashable, CaseIterable, Id
         switch self {
         case .repository: "Repositories"
         case .person: "People"
+        case .organization: "Organizations"
         }
     }
 
@@ -30,6 +35,7 @@ public enum ShorthandKind: String, Codable, Sendable, Hashable, CaseIterable, Id
         switch self {
         case .repository: "a repository written as owner/name, such as acme/api"
         case .person: "a GitHub login, such as ada-park"
+        case .organization: "an organization's name, such as acme"
         }
     }
 
@@ -38,6 +44,7 @@ public enum ShorthandKind: String, Codable, Sendable, Hashable, CaseIterable, Id
         switch self {
         case .repository: "owner/name"
         case .person: "login"
+        case .organization: "organization"
         }
     }
 
@@ -46,13 +53,14 @@ public enum ShorthandKind: String, Codable, Sendable, Hashable, CaseIterable, Id
         switch self {
         case .repository: Repository.isPlainName(text)
         case .person: text.wholeMatch(of: /[A-Za-z0-9][A-Za-z0-9-]*(\[bot\])?/) != nil
+        case .organization: text.wholeMatch(of: /[A-Za-z0-9][A-Za-z0-9-]*/) != nil
         }
     }
 
     /// An identity as typed, made plain: spaces trimmed, and a leading `@` taken off a login.
     public func normalizedIdentity(_ text: String) -> String {
         let trimmed = text.trimmingCharacters(in: .whitespaces)
-        if self == .person, trimmed.hasPrefix("@") { return String(trimmed.dropFirst()) }
+        if self != .repository, trimmed.hasPrefix("@") { return String(trimmed.dropFirst()) }
         return trimmed
     }
 }
@@ -63,8 +71,8 @@ public enum ShorthandKind: String, Codable, Sendable, Hashable, CaseIterable, Id
 /// copied values, or anything sent to GitHub.
 public struct Shorthand: Codable, Sendable, Hashable, Identifiable {
     public var kind: ShorthandKind
-    /// The thing's identity: `owner/name` for a repository, the login for a person. Written
-    /// `for` in the file.
+    /// The thing's identity: `owner/name` for a repository, the login for a person, the name
+    /// for an organization. Written `for` in the file.
     public var target: String
     /// What the app draws instead of the full name.
     public var shorthand: String
@@ -146,7 +154,7 @@ public struct DisplayName: Sendable, Hashable {
 }
 
 /// The shorthands the configuration folder sets, ready to look up. Every label the app draws
-/// for a repository or a person comes through here, so no view formats a name on its own.
+/// for a repository, a person or an organization comes through here, so no view formats a name on its own.
 ///
 /// With no shorthands every label is exactly what it was before shorthands existed.
 public struct Shorthands: Sendable, Hashable {
@@ -174,14 +182,28 @@ public struct Shorthands: Sendable, Hashable {
 
     // MARK: Labels
 
-    /// `Web` for a repository with a shorthand, `acme/web` otherwise.
+    /// `Web` for a repository with a shorthand. Without one, a repository whose organization
+    /// has a shorthand is `Acme/web`, and otherwise `acme/web`. A repository's own shorthand
+    /// always stands alone.
     public func name(for repository: Repository) -> DisplayName {
-        guard let short = shorthand(.repository, for: repository.fullName) else { return DisplayName(repository.fullName) }
-        return DisplayName(text: short, fullName: repository.fullName, isShortened: true)
+        if let short = shorthand(.repository, for: repository.fullName) {
+            return DisplayName(text: short, fullName: repository.fullName, isShortened: true)
+        }
+        if let owner = shorthand(.organization, for: repository.owner) {
+            return DisplayName(text: "\(owner)/\(repository.name)", fullName: repository.fullName, isShortened: true)
+        }
+        return DisplayName(repository.fullName)
     }
 
-    /// `Web #95` for a repository with a shorthand, `acme/web #95` otherwise. The shorthand
-    /// stands alone, without the owner.
+    /// An organization's shorthand, or its name as before.
+    public func name(forOrganization organization: String) -> DisplayName {
+        guard let short = shorthand(.organization, for: organization) else { return DisplayName(organization) }
+        return DisplayName(text: short, fullName: organization, isShortened: true)
+    }
+
+    /// `Web #95` for a repository with a shorthand, `acme/web #95` otherwise, or `Acme/web #95`
+    /// when only the organization has one. A repository's shorthand stands alone, without the
+    /// owner.
     public func reference(_ repository: Repository, number: Int) -> DisplayName {
         let repositoryName = name(for: repository)
         let full = "\(repository.fullName) #\(number)"
@@ -238,10 +260,12 @@ public struct Shorthands: Sendable, Hashable {
 
     // MARK: Search
 
-    /// The shorthands of a pull request's repository and author, so the word search finds a
-    /// pull request by either. It searches the same fields it did before, by their full names.
+    /// The shorthands of a pull request's repository, its organization and its author, so the
+    /// word search finds a pull request by any of them. It searches the same fields it did
+    /// before, by their full names.
     public func searchTerms(for pr: PullRequest) -> [String] {
-        [shorthand(.repository, for: pr.repository.fullName), shorthand(.person, for: pr.author.login)].compactMap(\.self)
+        [shorthand(.repository, for: pr.repository.fullName), shorthand(.organization, for: pr.repository.owner),
+         shorthand(.person, for: pr.author.login)].compactMap(\.self)
     }
 
     // MARK: Clashes
@@ -337,17 +361,27 @@ extension PullRequestIndex {
     public func search(_ text: String) -> [PullRequest] { search(text, shorthands: .none) }
 }
 
-/// The repositories and people the index knows, offered when a shorthand is added. Read from
-/// the index, never the network.
+/// The repositories, people and organizations the index knows, offered when a shorthand is
+/// added. Read from the index, never the network.
 public struct ShorthandCandidates: Sendable, Hashable {
     /// `owner/name`, sorted.
     public var repositories: [String]
     /// Authors, reviewers, commenters and assignees, people before bots, by name.
     public var people: [Person]
+    /// The owners of those repositories, sorted.
+    public var organizations: [String]
 
-    public init(repositories: [String] = [], people: [Person] = []) {
+    public init(repositories: [String] = [], people: [Person] = [], organizations: [String]? = nil) {
         self.repositories = repositories
         self.people = people
+        self.organizations = organizations ?? Self.owners(of: repositories)
+    }
+
+    static func owners(of repositories: [String]) -> [String] {
+        var seen = Set<String>()
+        return repositories.compactMap { Repository(fullName: $0)?.owner }
+            .filter { seen.insert($0.lowercased()).inserted }
+            .sorted { $0.lowercased() < $1.lowercased() }
     }
 
     public init(index: any PullRequestIndex) {
@@ -363,6 +397,7 @@ public struct ShorthandCandidates: Sendable, Hashable {
             for thread in pr.reviewThreads { thread.comments.forEach { add($0.author) } }
         }
         self.repositories = repositories.sorted { $0.lowercased() < $1.lowercased() }
+        self.organizations = Self.owners(of: self.repositories)
         self.people = people.values.sorted {
             ($0.isBot ? 1 : 0, $0.displayName.lowercased(), $0.login) < ($1.isBot ? 1 : 0, $1.displayName.lowercased(), $1.login)
         }
@@ -376,6 +411,8 @@ public struct ShorthandCandidates: Sendable, Hashable {
         case .person:
             people.filter { shorthands.shorthand(.person, for: $0.login) == nil }
                 .map { ($0.login, $0.displayName == $0.login ? $0.login : "\($0.displayName) (\($0.login))") }
+        case .organization:
+            organizations.filter { shorthands.shorthand(.organization, for: $0) == nil }.map { ($0, $0) }
         }
     }
 }

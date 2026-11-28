@@ -38,9 +38,9 @@ enum JSONKeyCheck {
     ])
 
     /// Throws for the first unknown key. Text that is not JSON passes, for the decoder to report.
-    static func check(_ data: Data, fileName: String, allowed shape: Shape) throws(LayoutFileError) {
+    static func check(_ data: Data, fileName: String, allowed shape: Shape, allowsSchemaKey: Bool = true) throws(LayoutFileError) {
         guard let object = try? JSONSerialization.jsonObject(with: data) else { return }
-        if let problem = walk(object, shape: shape, path: "", isTop: true) {
+        if let problem = walk(object, shape: shape, path: "", isTop: allowsSchemaKey) {
             throw LayoutFileError(fileName: fileName, path: problem.path, problem: problem.message)
         }
     }

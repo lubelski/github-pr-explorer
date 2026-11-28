@@ -74,7 +74,8 @@ struct GitHubPRExplorerApp: App {
         // The Settings scene puts Settings… in the app menu, with Command-comma.
         Settings {
             SettingsRootView(configuration: configuration,
-                             context: SettingsContext(build: .current, world: .standard, updater: updater, sync: sync))
+                             context: SettingsContext(build: .current, world: .standard, updater: updater, sync: sync,
+                                                      index: { [model] in model.index }))
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: SettingsRootView.size.width, height: SettingsRootView.size.height)

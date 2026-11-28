@@ -35,12 +35,18 @@ enum ControlCommand {
           config                 The configuration folder: path, validate, show, set, history,
                                  diff, restore.
           layouts                Page layouts: list, show, duplicate.
+          shorthands             Short names drawn for repositories and people: list, set,
+                                 remove.
+          filters                Saved filters: list, show, evaluate, add, change, move,
+                                 remove.
+          mcp                    Run as an MCP server over standard input and output, with
+                                 the same saved filter operations as tools.
 
         Options:
           --config <folder>      Use this configuration folder instead of the app's.
           --index <folder>       Use this synced index folder instead of the app's, which is
                                  ~/Library/Application Support/github-pr-explorer/index.
-          --source mock|github   For list and show: which index to read. Default: the
+          --source mock|github   For list, show, filters and mcp: which index to read. Default: the
                                  pullRequestSource setting.
 
         Run `\(name) <command> --help` for a command's options.
@@ -57,7 +63,8 @@ enum ControlCommand {
           --repo <owner/name>   Only this repository, such as acme/api.
           --state <state>       open, merged, closed, or all. Default: all.
           --search <text>       Only pull requests matching every word, in the title, number,
-                                author, repository or a changed file's path.
+                                author, repository or a changed file's path, or in the
+                                repository's or author's shorthand. Output keeps full names.
           --source mock|github  The mock world, or the index synced from GitHub. Default: the
                                 pullRequestSource setting.
         """
@@ -91,6 +98,7 @@ enum ControlCommand {
     /// Tests leave it off, so they read the mock world and never the real folders.
     static func run(_ arguments: [String], world: MockWorld = .standard, sourceFromSettings: Bool = false) -> ControlCommandResult {
         var arguments = arguments
+        let namesFolder = arguments.contains("--config")
         let folder: URL
         switch configurationFolder(from: &arguments) {
         case .success(let url): folder = url
@@ -123,7 +131,9 @@ enum ControlCommand {
                 return .failure("Unknown command: pull-requests \(rest.first ?? "").\n\n\(listHelp)\n", exitCode: 2)
             }
             switch pullRequests() {
-            case .success(let choice): return list(Array(rest.dropFirst()), choice: choice)
+            case .success(let choice):
+                return list(Array(rest.dropFirst()), choice: choice,
+                            shorthands: searchShorthands(folder, readsFolder: namesFolder || sourceFromSettings))
             case .failure(let error): return .failure(error.message)
             }
         case "pull-request":
@@ -145,6 +155,12 @@ enum ControlCommand {
             return config(rest, folder: folder)
         case "layouts":
             return layouts(rest, folder: folder)
+        case "shorthands":
+            return shorthands(rest, folder: folder)
+        case "filters":
+            return filters(rest, folder: folder, index: pullRequests)
+        case "mcp":
+            return .failure("`\(name) mcp` runs an MCP server on standard input and output. Start it from an MCP client.\n\n\(mcpHelp)\n", exitCode: 2)
         case "sync":
             return syncStatusOrHelp(rest, indexFolder: indexFolder)
         default:
@@ -154,7 +170,7 @@ enum ControlCommand {
 
     // MARK: pull-requests list
 
-    static func list(_ arguments: [String], choice: IndexChoice) -> ControlCommandResult {
+    static func list(_ arguments: [String], choice: IndexChoice, shorthands: Shorthands = .none) -> ControlCommandResult {
         if arguments.contains("--help") || arguments.contains("-h") { return .success(listHelp + "\n") }
         var repository: Repository?
         var state: PullRequestState?
@@ -183,7 +199,7 @@ enum ControlCommand {
             return .failure("No repository \(repository.fullName) in the index.\n")
         }
         let index = choice.index
-        let lines = index.search(search)
+        let lines = index.search(search, shorthands: shorthands)
             .filter { repository == nil || $0.repository == repository }
             .filter { state == nil || $0.state == state }
             .map { listLine($0, viewer: index.viewer, now: choice.now) }

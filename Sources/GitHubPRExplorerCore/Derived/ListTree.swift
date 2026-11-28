@@ -44,8 +44,13 @@ public struct ListGroup: Sendable, Identifiable {
     /// gives the ids the sectioned list gave, so rows remembered as closed stay closed.
     public var id: String
     public var property: ListGrouping.Property
-    /// The name on the row. Under its organization a repository is named without it: "api".
-    public var title: String
+    /// The name on the row, with the full name it stands for. A repository's or an author's
+    /// row takes its shorthand when one is set, and the hover shows the full name. Without a
+    /// shorthand, a repository under its organization is named without it: "api". An
+    /// organization has no shorthand kind, so its row keeps its full name.
+    public var name: DisplayName
+    /// What the row draws.
+    public var title: String { name.text }
     /// 0 for the outermost level.
     public var depth: Int
     public var parentID: String?
@@ -98,12 +103,14 @@ public struct ListTree: Sendable {
 
     /// `status` is each pull request's status sentence, which the caller usually has already.
     /// Groups follow the filter menu's order for the same values, and rows keep their order
-    /// inside a group. A group with no pull requests is never made.
+    /// inside a group. A group with no pull requests is never made. A repository's or an
+    /// author's title row is named by its shorthand when `shorthands` sets one, and is still
+    /// ordered by the full name.
     public init(grouping: ListGrouping, pullRequests: [PullRequest], viewer: Viewer,
-                status: (PullRequest) -> StatusSentence) {
+                status: (PullRequest) -> StatusSentence, shorthands: Shorthands = .none) {
         self.grouping = grouping
         let groups = Self.build(pullRequests, levels: grouping.levels[...], depth: 0, parent: nil,
-                                named: [], viewer: viewer, status: status)
+                                named: [], viewer: viewer, status: status, shorthands: shorthands)
         self.groups = groups
         var byID: [String: ListGroup] = [:]
         var paths: [PullRequest.ID: [String]] = [:]
@@ -242,13 +249,15 @@ public struct ListTree: Sendable {
 
     private static func build(_ pullRequests: [PullRequest], levels: ArraySlice<ListGrouping.Property>, depth: Int,
                               parent: String?, named: Set<ListGrouping.Property>, viewer: Viewer,
-                              status: (PullRequest) -> StatusSentence) -> [ListGroup] {
+                              status: (PullRequest) -> StatusSentence, shorthands: Shorthands) -> [ListGroup] {
         guard let property = levels.first, !pullRequests.isEmpty else { return [] }
-        return buckets(pullRequests, by: property, named: named, viewer: viewer, status: status).map { bucket in
+        return buckets(pullRequests, by: property, named: named, viewer: viewer, status: status,
+                       shorthands: shorthands).map { bucket in
             let id = parent.map { "\($0)|\(bucket.key)" } ?? bucket.key
             let children = build(bucket.rows, levels: levels.dropFirst(), depth: depth + 1, parent: id,
-                                 named: named.union([property]), viewer: viewer, status: status)
-            return ListGroup(id: id, property: property, title: bucket.title, depth: depth, parentID: parent,
+                                 named: named.union([property]), viewer: viewer, status: status,
+                                 shorthands: shorthands)
+            return ListGroup(id: id, property: property, name: bucket.name, depth: depth, parentID: parent,
                              children: children,
                              pullRequests: children.isEmpty ? bucket.rows : children.flatMap(\.pullRequests))
         }
@@ -256,24 +265,27 @@ public struct ListTree: Sendable {
 
     private struct Bucket {
         var key: String
-        var title: String
+        var name: DisplayName
         var rows: [PullRequest]
     }
 
     /// The pull requests split by one property, in the filter menu's order for its values.
     private static func buckets(_ pullRequests: [PullRequest], by property: ListGrouping.Property,
                                 named: Set<ListGrouping.Property>, viewer: Viewer,
-                                status: (PullRequest) -> StatusSentence) -> [Bucket] {
+                                status: (PullRequest) -> StatusSentence, shorthands: Shorthands) -> [Bucket] {
         switch property {
         case .organization:
             return grouped(pullRequests, key: \.repository.owner,
                            order: { $0.sorted { $0.localizedStandardCompare($1) == .orderedAscending } }) {
-                Bucket(key: "organization:\($0)", title: $0, rows: $1)
+                Bucket(key: "organization:\($0)", name: DisplayName($0), rows: $1)
             }
         case .repository:
             let short = named.contains(.organization)
             return grouped(pullRequests, key: \.repository, order: { $0.sorted() }) {
-                Bucket(key: "repository:\($0.fullName)", title: short ? $0.name : $0.fullName, rows: $1)
+                // A shorthand stands alone, without the owner, as it does everywhere else.
+                var name = shorthands.name(for: $0)
+                if short && !name.isShortened { name = DisplayName($0.name) }
+                return Bucket(key: "repository:\($0.fullName)", name: name, rows: $1)
             }
         case .author:
             var people: [String: Person] = [:]
@@ -281,18 +293,22 @@ public struct ListTree: Sendable {
             return grouped(pullRequests, key: \.author.login,
                            order: { logins in logins.compactMap { people[$0] }.sorted(by: viewer.listsBefore).map(\.login) }) { login, rows in
                 let person = people[login] ?? Person(login: login, displayName: login)
-                let title = viewer.isViewer(person) ? "\(person.displayName) (you)" : person.displayName
-                return Bucket(key: "author:\(login)", title: title, rows: rows)
+                var name = shorthands.name(for: person)
+                if viewer.isViewer(person) {
+                    name.text += " (you)"
+                    if !name.isShortened { name.fullName = name.text }
+                }
+                return Bucket(key: "author:\(login)", name: name, rows: rows)
             }
         case .status:
             return grouped(pullRequests, key: { status($0).badge },
                            order: { badges in StatusSentence.Badge.allCases.filter(badges.contains) }) {
-                Bucket(key: "status:\($0.rawValue)", title: $0.name, rows: $1)
+                Bucket(key: "status:\($0.rawValue)", name: DisplayName($0.name), rows: $1)
             }
         case .reviewState:
             return grouped(pullRequests, key: { ListFilter.ReviewState($0.reviewDecision) },
                            order: { states in ListFilter.ReviewState.allCases.filter(states.contains) }) {
-                Bucket(key: "review:\($0.rawValue)", title: $0.name, rows: $1)
+                Bucket(key: "review:\($0.rawValue)", name: DisplayName($0.name), rows: $1)
             }
         }
     }

@@ -7,8 +7,9 @@ extension ControlCommand {
     static let configHelp = """
         \(name) config <command> [--config <folder>]
 
-        The configuration folder holds settings.json and layouts/*.json. The app watches it and
-        applies a change as soon as it is saved. Every valid change is kept as a version.
+        The configuration folder holds settings.json, shorthands.json, saved-filters.json and
+        layouts/*.json. The app watches it and applies a change as soon as it is saved. Every
+        valid change is kept as a version. `\(name) shorthands` changes shorthands.json.
 
         Commands:
           config path                      Print where the folder is.
@@ -122,7 +123,7 @@ extension ControlCommand {
         "There is no configuration folder at \(store.folder.path) yet, so there is no history.\n"
     }
 
-    private static func historyWarning(_ store: ConfigurationStore) -> String {
+    static func historyWarning(_ store: ConfigurationStore) -> String {
         store.historyProblem.map { "The change was made, but it was not kept as a version: \($0)\n" } ?? ""
     }
 
@@ -135,7 +136,8 @@ extension ControlCommand {
             return .success("No configuration folder at \(store.folder.path) yet. The defaults and the built-in layouts are in use.\n")
         }
         let snapshot = store.reload()
-        let files = [ConfigurationSettings.fileName] + (((try? FileManager.default.contentsOfDirectory(atPath: store.layoutsURL.path)) ?? [])
+        let shorthandsFile = FileManager.default.fileExists(atPath: store.shorthandsURL.path) ? [ShorthandsFile.fileName] : []
+        let files = [ConfigurationSettings.fileName] + shorthandsFile + [SavedFilterFile.fileName] + (((try? FileManager.default.contentsOfDirectory(atPath: store.layoutsURL.path)) ?? [])
             .filter { $0.hasSuffix(".json") && !$0.hasPrefix(".") }.sorted().map { "\(ConfigurationStore.layoutsFolderName)/\($0)" })
         var lines: [String] = []
         for file in files {
@@ -153,7 +155,8 @@ extension ControlCommand {
         for problem in snapshot.problems where !files.contains(problem.file) {
             lines.append("problem\t\(problem.description)")
         }
-        let text = lines.map { $0 + "\n" }.joined()
+        // Two things sharing a shorthand is allowed. It is a warning, not a problem.
+        let text = lines.map { $0 + "\n" }.joined() + clashLines(snapshot.shorthands)
         if snapshot.problems.isEmpty { return .success(text) }
         let count = snapshot.problems.count
         return ControlCommandResult(exitCode: 1, output: text, errorOutput: "\(count) \(count == 1 ? "problem" : "problems") found.\n")
@@ -172,6 +175,9 @@ extension ControlCommand {
         var folderExists: Bool
         var settings: ConfigurationSettings
         var layouts: [Layout]
+        var shorthands: ShorthandsReport
+        /// Everything first, then the saved filters in their order.
+        var savedFilters: [SavedFilter]
         var problems: [ConfigurationProblem]
     }
 
@@ -186,6 +192,8 @@ extension ControlCommand {
                 return .init(id: entry.id, name: entry.layout.name, source: entry.source.file ?? "built in",
                              overridesBuiltIn: overrides, isDefault: entry.id == defaultID)
             },
+            shorthands: ShorthandsReport(snapshot.shorthands),
+            savedFilters: snapshot.filters,
             problems: snapshot.problems)
     }
 
@@ -209,11 +217,18 @@ extension ControlCommand {
                 text += "  experiments.\(experiment.key)  \(settings.isOn(experiment))\n"
             }
         }
+        text += "\nSaved filters (\(SavedFilterFile.fileName)), in tab order\n"
+        for saved in report.savedFilters {
+            text += "  \(saved.id)\t\(saved.name)\t\(saved.isEverything ? "fixed" : saved.showsAsTab ? "tab" : "hidden")\t\(saved.summary)\n"
+        }
         text += "\nLayouts\n"
         for layout in report.layouts {
             let source = layout.overridesBuiltIn ? "\(layout.source), replaces the built-in" : layout.source
             text += "  \(layout.id)\t\(layout.name)\t\(source)\(layout.isDefault ? "\tdefault" : "")\n"
         }
+        text += "\nShorthands (shorthands.json)\n"
+        let shorthands = (store.exists ? store.snapshot : .builtIn).shorthands
+        text += shorthandLines(shorthands).split(separator: "\n").map { "  \($0)\n" }.joined()
         if !report.problems.isEmpty {
             text += "\nProblems\n" + report.problems.map { "  \($0.description)\n" }.joined()
         }

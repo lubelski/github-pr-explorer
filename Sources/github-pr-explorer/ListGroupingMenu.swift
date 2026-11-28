@@ -131,7 +131,7 @@ struct ListGroupRow: View {
             }
             .help(isOpen ? "Close. Option-click to close every row at this level."
                          : "Open. Option-click to open every row at this level.")
-            Text(group.title)
+            ShortenedName(group.name)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
@@ -149,7 +149,7 @@ struct ListGroupRow: View {
         .background(alignment: .leading) { ListTreeGuides(depth: group.depth, startsBelowTriangle: isOpen) }
         .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(group.title), \(group.count) pull request\(group.count == 1 ? "" : "s")")
+        .accessibilityLabel("\(group.name.accessibilityLabel), \(group.count) pull request\(group.count == 1 ? "" : "s")")
         .accessibilityValue(isOpen ? "Expanded" : "Collapsed")
         .accessibilityAction(named: isOpen ? "Collapse" : "Expand") { model.toggleGroup(group.id) }
     }

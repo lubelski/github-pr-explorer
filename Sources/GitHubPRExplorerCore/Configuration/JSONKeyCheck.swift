@@ -26,6 +26,11 @@ enum JSONKeyCheck {
         "pullRequestSource": .value, "syncIntervalSeconds": .value, "watchedRepositories": .array(.value),
     ])
 
+    static let shorthandsShape = Shape.object([
+        "formatVersion": .value,
+        "shorthands": .array(.object(["kind": .value, "for": .value, "shorthand": .value])),
+    ])
+
     static let layoutShape = Shape.object([
         "formatVersion": .value, "id": .value, "name": .value,
         "tabs": .array(.object([
@@ -38,9 +43,9 @@ enum JSONKeyCheck {
     ])
 
     /// Throws for the first unknown key. Text that is not JSON passes, for the decoder to report.
-    static func check(_ data: Data, fileName: String, allowed shape: Shape) throws(LayoutFileError) {
+    static func check(_ data: Data, fileName: String, allowed shape: Shape, allowsSchemaKey: Bool = true) throws(LayoutFileError) {
         guard let object = try? JSONSerialization.jsonObject(with: data) else { return }
-        if let problem = walk(object, shape: shape, path: "", isTop: true) {
+        if let problem = walk(object, shape: shape, path: "", isTop: allowsSchemaKey) {
             throw LayoutFileError(fileName: fileName, path: problem.path, problem: problem.message)
         }
     }

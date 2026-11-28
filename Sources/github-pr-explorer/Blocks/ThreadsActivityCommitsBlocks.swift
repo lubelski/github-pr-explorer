@@ -8,6 +8,7 @@ struct ThreadsBlock: View {
     let size: BlockSize
     let context: BlockContext
     @Environment(\.pageActions) private var actions
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
         let threads = pullRequest.threadsUnresolvedFirst
@@ -40,7 +41,7 @@ struct ThreadsBlock: View {
                 if thread.isResolved { Tag(text: "resolved") }
                 Spacer(minLength: 8)
                 if let author = thread.startedBy {
-                    Text(author.displayName).font(Style.secondary).foregroundStyle(.secondary)
+                    ShortenedName(shorthands.name(for: author)).font(Style.secondary).foregroundStyle(.secondary)
                 }
             }
             if let first = thread.comments.first {
@@ -50,7 +51,9 @@ struct ThreadsBlock: View {
             }
             if thread.comments.count > 1, let last = thread.lastComment {
                 let replies = thread.comments.count - 1
-                Text("\(replies) \(replies == 1 ? "reply" : "replies"), last by \(last.author.displayName)")
+                let lastName = shorthands.name(for: last.author)
+                Text("\(replies) \(replies == 1 ? "reply" : "replies"), last by \(lastName.text)")
+                    .optionalHelp(lastName.help)
                     .font(Style.secondary)
                     .foregroundStyle(.secondary)
             }
@@ -81,6 +84,7 @@ struct ActivityBlock: View {
     @Environment(\.previewExpandsBlocks) private var previewExpands
     /// `hidesBotEventsInActivity` in `settings.json`.
     @Environment(\.hidesBotEventsInActivity) private var hidesBots
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
         if pullRequest.timeline.isEmpty {
@@ -139,7 +143,7 @@ struct ActivityBlock: View {
                         LinkButton(title: "Hide") { showsBots = false }
                     } else {
                         Text("\(botCount(feed.hiddenBotCount)) hidden").foregroundStyle(.secondary)
-                            .help("From " + feed.botLogins.joined(separator: ", "))
+                            .help("From " + feed.botLogins.map { shorthands.name(forLogin: $0).text }.joined(separator: ", "))
                         Text("·").foregroundStyle(.secondary)
                         LinkButton(title: "Show") { showsBots = true }
                     }
@@ -155,13 +159,12 @@ struct ActivityBlock: View {
 
     private func botCount(_ count: Int) -> String { count == 1 ? "1 bot event" : "\(count) bot events" }
 
-    /// The actor's name in bold, then the rest of the line.
-    private func summary(_ event: TimelineEvent) -> Text {
-        let names = [event.actor.displayName, event.actor.login]
-        if let name = names.first(where: { event.summary.hasPrefix($0 + " ") }) {
-            return Text("\(Text(name).fontWeight(.semibold))\(String(event.summary.dropFirst(name.count)))")
-        }
-        return Text(event.summary)
+    /// The actor's name in bold, with its shorthand, then the rest of the line. A shortened
+    /// name shows the full name on hover.
+    private func summary(_ event: TimelineEvent) -> some View {
+        let line = shorthands.activityLine(event)
+        let text = line.actor.map { Text("\(Text(verbatim: $0.text).fontWeight(.semibold))\(line.rest)") } ?? Text(event.summary)
+        return text.optionalHelp(line.actor?.help)
     }
 
     private func age(_ event: TimelineEvent) -> some View {
@@ -221,6 +224,7 @@ struct CommitsBlock: View {
 struct LabelsAndMetadataBlock: View {
     let pullRequest: PullRequest
     let size: BlockSize
+    @Environment(\.shorthands) private var shorthands
 
     var body: some View {
         let pr = pullRequest
@@ -247,7 +251,9 @@ struct LabelsAndMetadataBlock: View {
                     } else {
                         VStack(alignment: .leading, spacing: 2) {
                             ForEach(pr.linkedIssues, id: \.self) { issue in
-                                Text(verbatim: "\(issue.repository.fullName)#\(issue.number) \(issue.title)").lineLimit(1)
+                                let repository = shorthands.name(for: issue.repository)
+                                Text(verbatim: "\(repository.text)#\(issue.number) \(issue.title)").lineLimit(1)
+                                    .optionalHelp(repository.isShortened ? "\(issue.repository.fullName)#\(issue.number) \(issue.title)" : nil)
                             }
                         }
                     }
@@ -258,12 +264,14 @@ struct LabelsAndMetadataBlock: View {
                 }
                 GridRow {
                     key("Assignees")
-                    Text(pr.assignees.isEmpty ? "None" : pr.assignees.map(\.displayName).joined(separator: ", "))
+                    let assignees = pr.assignees.map(shorthands.name(for:))
+                    Text(verbatim: pr.assignees.isEmpty ? "None" : assignees.map(\.text).joined(separator: ", "))
                         .foregroundStyle(pr.assignees.isEmpty ? .secondary : .primary)
+                        .optionalHelp(assignees.contains(where: \.isShortened) ? assignees.map(\.fullName).joined(separator: "\n") : nil)
                 }
                 GridRow {
                     key("Author")
-                    Text(pr.author.displayName)
+                    ShortenedName(shorthands.name(for: pr.author))
                 }
             }
         }

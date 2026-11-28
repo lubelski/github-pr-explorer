@@ -167,6 +167,55 @@ import Testing
         #expect(tree(ListGrouping(.reviewState)).groups.map(\.title) == choices.reviewStates.map(\.name))
     }
 
+    @Test func shorthandsNameRepositoryAndAuthorTitleRows() {
+        let viewer = world.viewer.person
+        let other = open.map(\.author).first { $0.login != viewer.login }!
+        let shorthands = Shorthands([
+            Shorthand(kind: .repository, target: MockCast.api.fullName, shorthand: "API"),
+            Shorthand(kind: .person, target: viewer.login, shorthand: "Me"),
+            Shorthand(kind: .person, target: other.login, shorthand: "Short"),
+        ])
+        func shortened(_ grouping: ListGrouping) -> ListTree {
+            ListTree(grouping: grouping, pullRequests: open, viewer: world.viewer, status: status, shorthands: shorthands)
+        }
+        let plain = tree(ListGrouping(.repository)).groups
+        let repositories = shortened(ListGrouping(.repository)).groups
+        // The same title rows in the same order: only the names change.
+        #expect(repositories.map(\.id) == plain.map(\.id))
+        let api = repositories.first { $0.id == "repository:\(MockCast.api.fullName)" }
+        #expect(api?.title == "API")
+        #expect(api?.name.fullName == MockCast.api.fullName)
+        #expect(api?.name.isShortened == true)
+        #expect(repositories.filter { $0.name.isShortened }.count == 1)
+
+        let authors = shortened(ListGrouping(.author)).groups
+        #expect(authors.map(\.id) == tree(ListGrouping(.author)).groups.map(\.id))
+        #expect(authors.first?.title == "Me (you)")
+        #expect(authors.first?.name.isShortened == true)
+        #expect(authors.first { $0.id == "author:\(other.login)" }?.title == "Short")
+
+        // Under its organization, a repository with a shorthand is named by it alone, and one
+        // without is named without its organization. The organization keeps its name.
+        let nested = shortened(orgThenRepository)
+        #expect(nested.allGroups.map(\.id) == tree(orgThenRepository).allGroups.map(\.id))
+        #expect(nested.groups.allSatisfy { !$0.name.isShortened })
+        let nestedAPI = nested.group(id: "organization:\(MockCast.api.owner)|repository:\(MockCast.api.fullName)")
+        #expect(nestedAPI?.title == "API")
+        #expect(nestedAPI?.name.fullName == MockCast.api.fullName)
+        let nestedOthers = nested.allGroups.filter { $0.depth == 1 && $0.id != nestedAPI?.id }
+        #expect(!nestedOthers.isEmpty)
+        #expect(nestedOthers.allSatisfy { !$0.name.isShortened && !$0.title.contains("/") })
+
+        // At the second level, an author's shorthand names their row too.
+        let byRepositoryThenAuthor = shortened(ListGrouping(.repository, then: .author))
+        #expect(byRepositoryThenAuthor.allGroups.contains { $0.depth == 1 && $0.title == "Me (you)" })
+
+        // With none set, a title row's name is its full name, unshortened.
+        for grouping in everyGrouping {
+            #expect(tree(grouping).allGroups.allSatisfy { !$0.name.isShortened && $0.name.fullName == $0.title })
+        }
+    }
+
     @Test func theViewerIsTheFirstAuthor() {
         let groups = tree(ListGrouping(.author)).groups
         let viewer = world.viewer.person

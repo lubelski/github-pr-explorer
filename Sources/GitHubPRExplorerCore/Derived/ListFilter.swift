@@ -8,9 +8,10 @@ import Foundation
 /// by field, so the filter language can take its place: each clause is one condition of the
 /// form "field is one of values", and the filter is all of them together.
 ///
-/// These are plain predicates, not the filter language and not saved views. There is one
-/// filter language, and this type has no syntax of its own. When the language arrives, the
-/// menu writes conditions in it and this type goes away, as `FixedListView` will.
+/// The menu's choices are kept as plain sets so the menu can tick them. Its conditions are the
+/// filter language's (`FilterCondition`), and `filter` gives it as a filter of one set. When
+/// the window moves to saved filters, the menu writes conditions directly and this type goes
+/// away, as `FixedListView` will.
 public struct ListFilter: Codable, Sendable, Hashable {
     /// What to do with drafts.
     public enum Drafts: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
@@ -61,27 +62,14 @@ public struct ListFilter: Codable, Sendable, Hashable {
         }
     }
 
-    /// The fields a filter can test. A clause names one.
-    public enum Field: String, Codable, Sendable, Hashable, CaseIterable {
-        case repository
-        case author
-        case status
-        case draft
-        case reviewState
-    }
+    /// The fields a filter can test. A clause names one. It is the filter language's field.
+    public typealias Field = FilterField
 
-    /// One condition: the field is one of the values. The values are the plain forms the
-    /// index holds: `owner/name`, a login, a badge's or review state's raw value, and for
-    /// drafts `true` or `false`.
-    public struct Clause: Sendable, Hashable {
-        public var field: Field
-        public var values: [String]
-
-        public init(field: Field, values: [String]) {
-            self.field = field
-            self.values = values
-        }
-    }
+    /// One condition: the field is one of the values. It is the filter language's condition,
+    /// always with the operator "is". The values are the plain forms the index holds:
+    /// `owner/name`, a login, a badge's or review state's raw value, and for drafts `true` or
+    /// `false`.
+    public typealias Clause = FilterCondition
 
     public var repositories: Set<Repository>
     /// Authors by login.
@@ -124,6 +112,12 @@ public struct ListFilter: Codable, Sendable, Hashable {
             clauses.append(Clause(field: .reviewState, values: ReviewState.allCases.filter(reviewStates.contains).map(\.rawValue)))
         }
         return clauses
+    }
+
+    /// The filter in the filter language: one set holding every clause. A test checks that it
+    /// keeps exactly the pull requests `includes` keeps.
+    public var filter: PullRequestFilter {
+        clauses.isEmpty ? .everything : PullRequestFilter(clauses)
     }
 
     /// Whether the pull request passes. `status` is its status sentence, which the caller

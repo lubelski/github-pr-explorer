@@ -228,7 +228,8 @@ struct PullRequestList: View {
         case .pullRequest(let pr):
             PullRequestRow(pullRequest: pr, status: model.status(for: pr),
                            isViewer: model.index.viewer.isViewer(pr.author),
-                           namedByAncestors: row.namedByAncestors)
+                           namedByAncestors: row.namedByAncestors,
+                           shorthands: model.shorthands)
                 .padding(.leading, CGFloat(row.depth) * ListTreeMetrics.indentStep)
                 .background(alignment: .leading) { ListTreeGuides(depth: row.depth) }
         }
@@ -338,6 +339,8 @@ struct PullRequestRow: View {
     /// What the title rows above it already say. Inside a repository the row does not repeat
     /// the repository's name, and inside an organization it names the repository without it.
     var namedByAncestors: Set<ListGrouping.Property> = []
+    /// Short names for the repository and the author. The hover keeps the full names.
+    var shorthands: Shorthands = .none
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -364,12 +367,16 @@ struct PullRequestRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "acme/api #4826 · Ada Park", or without the author when that does not fit. Inside a
-    /// repository it is "#4826 · Ada Park", inside an organization "api #4826 · Ada Park", and
-    /// inside an author "acme/api #4826".
+    /// "acme/api #4826 · Ada Park", or without the author when that does not fit. A shorthand
+    /// takes the place of the repository's or the author's name, as in "API #4826 · Ada".
+    /// Inside a repository it is "#4826 · Ada Park", inside an organization "api #4826 · Ada
+    /// Park" (or the repository's shorthand, which stands alone), and inside an author
+    /// "acme/api #4826".
     private var repositoryLine: some View {
         let repository: String? = if namedByAncestors.contains(.repository) {
             nil
+        } else if let short = shorthands.shorthand(.repository, for: pullRequest.repository.fullName) {
+            short
         } else if namedByAncestors.contains(.organization) {
             pullRequest.repository.name
         } else {
@@ -383,7 +390,7 @@ struct PullRequestRow: View {
                 // Inside an author's row the author goes without saying.
                 if !namedByAncestors.contains(.author) {
                     Text(verbatim: " · ").foregroundStyle(.tertiary)
-                    Text(isViewer ? "you" : pullRequest.author.displayName)
+                    Text(isViewer ? "you" : shorthands.name(for: pullRequest.author).text)
                 }
             }
             .fixedSize()

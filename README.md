@@ -97,15 +97,16 @@ The app creates it on first run. It holds:
 |---|---|
 | `settings.json` | `formatVersion` (always `1`), `appearance` (`system`, `light`, `dark`), `defaultLayout` (a layout id), `hidesBotEventsInActivity` (`true` or `false`), `updatesAutomatically` (`true` or `false`), and `experiments` (names to `true`; there are none right now, so `{}`). Only `formatVersion` is required: a key left out takes its default. |
 | `layouts/<id>.json` | One page layout per file, named after its id. The format is the built-in layouts' format. A file with a built-in layout's id (`decision-first`, `tabbed`) replaces it. Copies of the built-in layouts are not written until you ask for one. |
+| `saved-filters.json` | The saved filters, in tab order. Each has an `id`, a `name`, a `filter`, and optionally `groupBy` (one or two groupings) and `showsAsTab`. A filter is `sets` joined by OR, each holding `conditions` joined by AND; a condition is a `field`, an `operator` (`is` or `isNot`) and `values` that are alternatives. "Everything" is built in, always first, and not in the file. A folder with no file uses "Needs my review" and "Mine". |
 | `README.md` | The same explanation, for whoever opens the folder. |
 
-The JSON Schemas are [schemas/settings.schema.json](schemas/settings.schema.json) and [schemas/page-layout.schema.json](schemas/page-layout.schema.json). Every property is described there.
+The JSON Schemas are [schemas/settings.schema.json](schemas/settings.schema.json), [schemas/saved-filters.schema.json](schemas/saved-filters.schema.json) and [schemas/page-layout.schema.json](schemas/page-layout.schema.json). Every property is described there.
 
 A file that does not validate is never applied. The app keeps using the last version of it that worked and shows the problem, with the file, where in it, and what is wrong, in Settings and in `config validate`. A key the format does not have counts as a problem, so a misspelled setting is reported instead of ignored.
 
 ### History
 
-The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `edited on disk` (an agent, an editor, or you), `ctl`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
+The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `edited on disk` (an agent, an editor, or you), `ctl`, `MCP`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
 
 ### From the command line
 
@@ -123,6 +124,20 @@ github-pr-explorer-ctl config restore 1a2b3c4 settings.json   # one file
 github-pr-explorer-ctl layouts list
 github-pr-explorer-ctl layouts show tabbed --json
 github-pr-explorer-ctl layouts duplicate tabbed my-layout --name "My layout"
+github-pr-explorer-ctl filters list                     # id, tab or hidden, count, name, plain words
+github-pr-explorer-ctl filters evaluate --filter '{"sets": [{"conditions": [{"field": "status", "values": ["blocked"]}]}]}'
+github-pr-explorer-ctl filters add blocked --name "Blocked" --filter '{"sets": [{"conditions": [{"field": "status", "values": ["blocked"]}]}]}'
+github-pr-explorer-ctl filters change blocked --group-by repository --tab false
+github-pr-explorer-ctl filters move blocked 1           # 1 is first after Everything
+github-pr-explorer-ctl filters remove blocked
+```
+
+### Over MCP
+
+`github-pr-explorer-ctl mcp` is an MCP server over standard input and output. Its tools do what `filters` does: `saved_filters_list`, `saved_filter_show`, `filter_evaluate`, `saved_filter_add`, `saved_filter_change`, `saved_filter_move` and `saved_filter_remove`. Settings and layouts are not tools yet.
+
+```json
+{"mcpServers": {"github-pr-explorer": {"command": "github-pr-explorer-ctl", "args": ["mcp"]}}}
 ```
 
 To make a new layout, duplicate one, edit `layouts/my-layout.json`, run `config validate`, then `config set defaultLayout my-layout`. From a checkout, put `swift run` in front of each command.
@@ -140,7 +155,7 @@ To make a new layout, duplicate one, edit `layouts/my-layout.json`, run `config 
 | [Sources/GitHubPRExplorerCore/](Sources/GitHubPRExplorerCore/) | The models, the status sentence, the index protocol, and the mock world in `Mock/`. |
 | [Sources/GitHubPRExplorerCore/Layout/](Sources/GitHubPRExplorerCore/Layout/) | Page layouts as JSON documents, and the two built-in layouts. |
 | [Sources/GitHubPRExplorerCore/Configuration/](Sources/GitHubPRExplorerCore/Configuration/) | The configuration folder: settings, validation, the folder watcher, and history. |
-| [schemas/](schemas/) | The JSON Schemas for `settings.json` and layout files. |
+| [schemas/](schemas/) | The JSON Schemas for `settings.json`, `saved-filters.json` and layout files. |
 | [Sources/GitHubPRExplorerCore/Blocks/](Sources/GitHubPRExplorerCore/Blocks/) | What each block shows, worked out without SwiftUI. |
 | [Sources/github-pr-explorer/](Sources/github-pr-explorer/) | The app: the window, one view per block, the Settings window, and the offscreen renders. |
 | [Sources/github-pr-explorer-ctl/](Sources/github-pr-explorer-ctl/) | The command line tool. |

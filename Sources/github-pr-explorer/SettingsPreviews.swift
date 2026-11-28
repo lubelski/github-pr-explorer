@@ -80,6 +80,22 @@ enum SettingsPreviews {
         return store
     }
 
+    /// Placeholder shorthands for the mock world's repositories and people.
+    static let sampleShorthands: [(ShorthandKind, String, String)] = [
+        (.repository, "acme/api", "API"), (.repository, "acme/web", "Web"), (.repository, "acme/infra", "Infra"),
+        (.person, "sam-rivera", "Sam"), (.person, "ada-park", "Ada"), (.person, "jo-lindqvist", "Jo"),
+        (.person, "max-chen", "Max"), (.person, "deploy-preview-bot", "Previews"),
+    ]
+
+    /// A store with the sample shorthands, and with `extra` after them.
+    static func shorthandStore(_ extra: [(ShorthandKind, String, String)] = []) -> ConfigurationStore {
+        let store = store()
+        for (kind, target, shorthand) in sampleShorthands + extra {
+            _ = try? store.setShorthand(kind, for: target, to: shorthand, author: .settingsWindow)
+        }
+        return store
+    }
+
     static func model(_ store: ConfigurationStore, configure: (ConfigurationModel) -> Void = { _ in }) -> ConfigurationModel {
         let model = ConfigurationModel(store: store, clock: { MockWorld.now.addingTimeInterval(-12 * 60) })
         model.start(watching: false)
@@ -176,6 +192,18 @@ enum SettingsPreviews {
                 status.problem = .rateLimited(until: MockWorld.now.addingTimeInterval(38 * 60))
                 return window(model(store), .github, sync: previewSync(status, source: .github))
             },
+            // Shorthands (MAC-73): none, several, and two things that share one.
+            State(name: "settings-shorthands-empty") {
+                let store = store()
+                _ = try? store.prepare(author: .app)
+                return window(model(store), .shorthands)
+            },
+            State(name: "settings-shorthands", size: CGSize(width: 900, height: 900)) {
+                window(model(shorthandStore()), .shorthands)
+            },
+            State(name: "settings-shorthands-clash", size: CGSize(width: 900, height: 900)) {
+                window(model(shorthandStore([(.repository, "acme/docs", "Web")])), .shorthands)
+            },
             State(name: "settings-experiments") {
                 let store = store()
                 _ = try? store.prepare(author: .app)
@@ -213,7 +241,69 @@ enum SettingsPreviews {
     /// The main window after `settings.json` was changed: the default layout and the bot
     /// events setting reach the open window through `AppModel.apply`, as they do in the app.
     static func mainWindowStates(model: @escaping (ConfigurationSnapshot) -> AppModel) -> [State] {
-        [
+        // The same window with no shorthands and with the sample ones, each listing every open
+        // pull request, so the two can be compared row by row.
+        func shorthandWindow(_ store: ConfigurationStore, configure: (AppModel) -> Void = { _ in }) -> AnyView {
+            store.reload()
+            let snapshot = store.snapshot
+            let app = model(snapshot)
+            app.apply(snapshot, previous: nil)
+            app.listView = .everythingOpen
+            configure(app)
+            return AnyView(MainWindowView(model: app, updater: .unavailable())
+                .environment(\.hidesBotEventsInActivity, app.hidesBotEventsInActivity))
+        }
+        return [
+            State(name: "shorthands-none", size: CGSize(width: 1560, height: 940)) {
+                let store = store()
+                _ = try? store.prepare(author: .app)
+                return shorthandWindow(store)
+            },
+            State(name: "shorthands-set", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore())
+            },
+            // The search finds a pull request by its repository's shorthand.
+            State(name: "shorthands-search", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { $0.searchText = "Web Ada" }
+            },
+            // The grouped list: a repository's shorthand names its section, and a person's
+            // shorthand names their author section.
+            State(name: "shorthands-group-repository", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { $0.listGrouping = .repository }
+            },
+            // Every author section collapsed but the one holding the selection, so their
+            // headers show, among them Ada's under her shorthand.
+            State(name: "shorthands-group-author", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { app in
+                    app.listGrouping = .author
+                    app.setAllSections(collapsed: true)
+                    app.selection = app.listedPullRequests.first { $0.author.login == MockCast.adaPark.login }?.id
+                }
+            },
+            // The page's other tabs, where threads, owners and metadata draw names.
+            State(name: "shorthands-page-tabbed-threads", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { app in
+                    app.layoutID = "tabbed"
+                    app.selectedTab = 3
+                }
+            },
+            // The diff with a thread open: the line's marker and the thread's comments.
+            State(name: "shorthands-diff-thread", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { app in
+                    guard let pr = app.selectedPullRequest,
+                          let thread = pr.reviewThreads.first(where: { $0.path == "auth/middleware.ts" }),
+                          let path = pr.paneStack(showingThread: thread.id) else { return }
+                    app.panePath = path
+                    app.buildDocumentNow(for: pr, path: thread.path)
+                }
+            },
+            State(name: "shorthands-page-tabbed-overview", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { app in
+                    app.layoutID = "tabbed"
+                    app.selectedTab = 0
+                }
+            },
+
             State(name: "page-4826-configured-default", size: CGSize(width: 1560, height: 940)) {
                 let store = usedStore()
                 store.reload()

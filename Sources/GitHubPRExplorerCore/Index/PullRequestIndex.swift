@@ -9,8 +9,10 @@ public protocol PullRequestIndex: Sendable {
     func pullRequest(repository: Repository, number: Int) -> PullRequest?
     /// Every word of `text` must appear, ignoring case and accents, in the title, the number
     /// (`4826` or `#4826`), the author's login or name, the repository, or a changed file's
-    /// path. Results keep the order of `allPullRequests`. Empty text returns everything.
-    func search(_ text: String) -> [PullRequest]
+    /// path. A word may also match the shorthand of the repository or the author. Results keep
+    /// the order of `allPullRequests`. Empty text returns everything. `search(_:)` searches
+    /// without shorthands.
+    func search(_ text: String, shorthands: Shorthands) -> [PullRequest]
 }
 
 extension PullRequestIndex {
@@ -53,11 +55,12 @@ public struct InMemoryPullRequestIndex: PullRequestIndex {
         positionByReference[PullRequestReference(repository: repository, number: number)].map { allPullRequests[$0] }
     }
 
-    public func search(_ text: String) -> [PullRequest] {
+    public func search(_ text: String, shorthands: Shorthands) -> [PullRequest] {
         let words = Self.fold(text).split(whereSeparator: \.isWhitespace).map(String.init)
         guard !words.isEmpty else { return allPullRequests }
         return allPullRequests.indices.compactMap { position in
-            let fields = searchText[position]
+            var fields = searchText[position]
+            if !shorthands.isEmpty { fields += shorthands.searchTerms(for: allPullRequests[position]).map(Self.fold) }
             let matches = words.allSatisfy { word in fields.contains { $0.contains(word) } }
             return matches ? allPullRequests[position] : nil
         }

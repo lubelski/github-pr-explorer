@@ -2,7 +2,7 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after the owner's first look at real pull requests (MAC-69).
+Last updated 2026-11-27, after shorthands (MAC-73) and grouping the list (MAC-100).
 
 ## Where we are
 
@@ -23,6 +23,8 @@ Real pull requests can be read (MAC-59), behind a setting that is off by default
 The owner's first run on real pull requests brought four changes to the main window (MAC-69). The sidebar button sits in the title bar just after the window buttons. A filter menu at the end of the views row narrows the list by status, repository, author, review state and drafts, whose conditions are now the filter language's (below). Each list row has three lines, the title, the repository and number with the author, and the status's detail, beside a short colored badge for the state. The layout menu became a cog menu with Layout, Sync Now, Settings and Check for Updates.
 
 The list can be grouped (MAC-100). A group by button beside the filter button draws the list in sections by repository, author, status or review state, each headed by its name in bold and its count, so pull requests from several repositories can be read one repository at a time without filtering down to one. A section collapses and expands in place with the system's own disclosure control or a click on its header, and Option-click does every section. Grouping arranges the rows and keeps none out, so it is not a filter and has no syntax. The choice and which sections are collapsed are remembered as window state, like the view.
+
+Shorthands are built (MAC-73): short names the person sets for repositories and people, such as Web for `acme/web`, drawn in place of the full name everywhere the app labels one, with the full name on hover. They live in `shorthands.json`, Settings has a Shorthands section, and `ctl shorthands` lists, sets and removes them. In the grouped list a repository's or an author's section is headed by its shorthand, still in the order of the full names. With none set the app looks as it did. The choices made on the owner's behalf are in `planning/decided.md` for him to overrule. MCP for shorthands waits with MCP for every other setting.
 
 Saved filters exist as data, with no window yet (MAC-112). The owner called filtering "a hidden gem of the app" and asked for filters he can make, name, order and edit, shown as tabs, after Figma rows 11 and 13. This step built the filter language's first form and everything about a saved filter except the window: `saved-filters.json` in the configuration folder with a schema, `ConfigurationStore` to read and change it, `github-pr-explorer-ctl filters` to list, show, evaluate, add, change, move and remove, and the first MCP server, `github-pr-explorer-ctl mcp`, with the same operations as tools. Evaluation gives the matches and a count by status ("7 of 218 match, 3 blocked · 2 waiting · 2 ready"), and every filter can be said in plain words. "Everything" is built in and always first, and a new folder starts with "Needs my review" and "Mine", equal to today's fixed views. The window still shows the fixed views and the filter menu. Still to come: the window (tabs, the Filter popover, editing a saved filter on its tab, and Settings, Saved Filters), the other settings over MCP, and more fields (label, path, checks).
 

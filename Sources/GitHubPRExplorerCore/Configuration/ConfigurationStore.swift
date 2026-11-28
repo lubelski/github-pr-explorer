@@ -65,14 +65,17 @@ public struct ConfigurationSnapshot: Sendable, Hashable {
     /// Built-in layouts first, in their order, each replaced by a file with its id, then the
     /// person's own layouts by name.
     public var layouts: [LayoutEntry]
+    /// From `shorthands.json`. None when the file is missing.
+    public var shorthands: Shorthands
     /// The saved filters from `saved-filters.json`, in their order, without Everything.
     public var savedFilters: [SavedFilter]
     public var problems: [ConfigurationProblem]
 
-    public init(settings: ConfigurationSettings = .defaults, layouts: [LayoutEntry],
+    public init(settings: ConfigurationSettings = .defaults, layouts: [LayoutEntry], shorthands: Shorthands = .none,
                 savedFilters: [SavedFilter] = SavedFilterFile.defaults.savedFilters, problems: [ConfigurationProblem] = []) {
         self.settings = settings
         self.layouts = layouts
+        self.shorthands = shorthands
         self.savedFilters = savedFilters
         self.problems = problems
     }
@@ -112,8 +115,8 @@ public struct ConfigurationError: Error, Sendable, Hashable, CustomStringConvert
 
 /// The configuration folder: reads it, checks it, writes changes to it, and keeps its history.
 ///
-/// The folder holds `settings.json`, `saved-filters.json`, one file per layout under `layouts/`, and a `README.md`
-/// that explains them. A file that does not validate is never applied: the last version that
+/// The folder holds `settings.json`, `shorthands.json` when any are set, `saved-filters.json`, one file per
+/// layout under `layouts/`, and a `README.md` that explains them. A file that does not validate is never applied: the last version that
 /// worked stays in use and the problem is reported with the file, where in it, and what is
 /// wrong. Every valid change is committed to the folder's git repository, whoever made it, by
 /// `ConfigurationHistory`. History never stops a save: when git fails, the change is made and
@@ -138,6 +141,7 @@ public final class ConfigurationStore {
     public private(set) var historyProblem: String?
 
     private var lastGoodSettings: ConfigurationSettings?
+    private var lastGoodShorthands: ShorthandsFile?
     private var lastGoodSavedFilters: SavedFilterFile?
     private var lastGoodLayouts: [String: PageLayout] = [:]
     private let builtIn = LayoutLibrary.builtIn()
@@ -149,6 +153,7 @@ public final class ConfigurationStore {
 
     public var exists: Bool { FileManager.default.fileExists(atPath: folder.path) }
     public var settingsURL: URL { folder.appending(path: ConfigurationSettings.fileName) }
+    public var shorthandsURL: URL { folder.appending(path: ShorthandsFile.fileName) }
     public var savedFiltersURL: URL { folder.appending(path: SavedFilterFile.fileName) }
     public var layoutsURL: URL { folder.appending(path: Self.layoutsFolderName, directoryHint: .isDirectory) }
     public func url(for file: String) -> URL { folder.appending(path: file) }
@@ -218,6 +223,24 @@ public final class ConfigurationStore {
             lastGoodSettings = nil
         }
 
+        // shorthands.json. Missing means none.
+        var shorthands = Shorthands.none
+        if let data = try? Data(contentsOf: shorthandsURL) {
+            do throws(LayoutFileError) {
+                let file = try ShorthandsFile.decode(data)
+                lastGoodShorthands = file
+                shorthands = file.lookup
+            } catch {
+                if lastGoodShorthands == nil, let committed = committedContents(ShorthandsFile.fileName) {
+                    lastGoodShorthands = try? ShorthandsFile.decode(committed)
+                }
+                problems.append(ConfigurationProblem(error, file: ShorthandsFile.fileName, lastGoodInUse: lastGoodShorthands != nil))
+                shorthands = lastGoodShorthands?.lookup ?? .none
+            }
+        } else {
+            lastGoodShorthands = nil
+        }
+
         // saved-filters.json. Missing means the defaults.
         var savedFilters = SavedFilterFile.defaults
         if let data = try? Data(contentsOf: savedFiltersURL) {
@@ -284,7 +307,8 @@ public final class ConfigurationStore {
                 refusesFile: false))
         }
 
-        snapshot = ConfigurationSnapshot(settings: settings, layouts: entries, savedFilters: savedFilters.savedFilters, problems: problems)
+        snapshot = ConfigurationSnapshot(settings: settings, layouts: entries, shorthands: shorthands,
+                                         savedFilters: savedFilters.savedFilters, problems: problems)
 
         if let author, exists {
             let refused = Set(problems.filter(\.refusesFile).map(\.file))
@@ -408,6 +432,75 @@ public final class ConfigurationStore {
         case "false", "no", "off", "0": false
         default: nil
         }
+    }
+
+    // MARK: Shorthands
+
+    /// Sets the shorthand for one repository or person, replacing the one it had, and writes
+    /// `shorthands.json`. A shorthand another thing already has is allowed: Settings and
+    /// `shorthands list` warn about it. Returns what changed, in a sentence.
+    ///
+    /// It refuses when `shorthands.json` on disk has a problem, so a hand edit that is being
+    /// fixed is never overwritten.
+    @discardableResult
+    public func setShorthand(_ kind: ShorthandKind, for target: String, to shorthand: String, author: ChangeAuthor) throws(ConfigurationError) -> String {
+        let identity = kind.normalizedIdentity(target)
+        guard kind.isValidIdentity(identity) else {
+            throw ConfigurationError("\"\(target)\" is not \(kind.identityDescription).")
+        }
+        let text = shorthand.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else {
+            throw ConfigurationError("The shorthand for \(identity) is empty. To take it away, remove it instead.")
+        }
+        let entry = Shorthand(kind: kind, target: identity, shorthand: text)
+        var summary = "Set the shorthand for \(identity) to \(text)"
+        try updateShorthands(author: author) { file in
+            if let position = file.shorthands.firstIndex(where: { $0.id == entry.id }) {
+                // The identity keeps the spelling it was first written with.
+                let target = file.shorthands[position].target
+                summary = file.shorthands[position].shorthand == text
+                    ? "\(target) already has the shorthand \(text)" : "Set the shorthand for \(target) to \(text)"
+                file.shorthands[position].shorthand = text
+            } else {
+                file.shorthands.append(entry)
+            }
+            return summary
+        }
+        return summary
+    }
+
+    /// Takes away the shorthand for one repository or person, so its full name shows again.
+    @discardableResult
+    public func removeShorthand(_ kind: ShorthandKind, for target: String, author: ChangeAuthor) throws(ConfigurationError) -> String {
+        let identity = kind.normalizedIdentity(target)
+        var summary = ""
+        try updateShorthands(author: author) { file throws(ConfigurationError) in
+            guard let found = file.shorthands.first(where: { $0.id == Shorthand.key(kind, identity) }) else {
+                throw ConfigurationError("\(identity) has no shorthand.")
+            }
+            file.shorthands.removeAll { $0.id == found.id }
+            summary = "Removed the shorthand \(found.shorthand) for \(found.target)"
+            return summary
+        }
+        return summary
+    }
+
+    private func updateShorthands(author: ChangeAuthor, _ change: (inout ShorthandsFile) throws(ConfigurationError) -> String) throws(ConfigurationError) {
+        try prepare(author: author)
+        if let problem = snapshot.problems.first(where: { $0.file == ShorthandsFile.fileName && $0.refusesFile }) {
+            throw ConfigurationError("shorthands.json has a problem, so it was not changed: \(problem). Fix the file, or restore an earlier version from History.")
+        }
+        var file = (try? Data(contentsOf: shorthandsURL)).flatMap { try? ShorthandsFile.decode($0) } ?? ShorthandsFile()
+        let summary = try change(&file)
+        let data: Data
+        do { data = try file.encoded() } catch { throw ConfigurationError("Could not encode the shorthands: \(error)") }
+        do throws(LayoutFileError) {
+            _ = try ShorthandsFile.decode(data)
+        } catch {
+            throw ConfigurationError(error.description)
+        }
+        try write(data, to: ShorthandsFile.fileName)
+        reload(committingAs: author, summary: summary)
     }
 
     /// Writes a copy of a layout to `layouts/<newID>.json`, for editing. The copy is named after

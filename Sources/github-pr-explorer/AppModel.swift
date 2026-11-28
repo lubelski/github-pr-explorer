@@ -25,6 +25,9 @@ final class AppModel {
     var library: LayoutLibrary
     /// Whether Activity starts with bot events folded away, from `settings.json`.
     var hidesBotEventsInActivity = true
+    /// The short names drawn for repositories and people, from `shorthands.json`. None by
+    /// default, and then every label is as it was.
+    var shorthands = Shorthands.none
 
     var searchText = ""
     /// The list's advanced filters. They narrow the chosen view together with the search.
@@ -104,7 +107,7 @@ final class AppModel {
     /// The listed pull requests in the sections the list draws. With no grouping, one section
     /// holds them all.
     var listSections: [ListGrouping.Section] {
-        listGrouping.sections(of: listedPullRequests, viewer: index.viewer, status: status(for:))
+        listGrouping.sections(of: listedPullRequests, viewer: index.viewer, status: status(for:), shorthands: shorthands)
     }
 
     /// Collapses or expands one section, or with `all` every section from it, as Option-click does.
@@ -142,7 +145,7 @@ final class AppModel {
     }
 
     private var searchedAndFiltered: [PullRequest] {
-        listFilter.pullRequests(in: index.search(searchText), status: status(for:))
+        listFilter.pullRequests(in: index.search(searchText, shorthands: shorthands), status: status(for:))
     }
 
     /// What the filter menu offers: the repositories, authors, statuses and review states of
@@ -203,6 +206,7 @@ final class AppModel {
     func apply(_ configuration: ConfigurationSnapshot, previous: ConfigurationSnapshot?) {
         library = configuration.library
         hidesBotEventsInActivity = configuration.settings.hidesBotEventsInActivity
+        shorthands = configuration.shorthands
         let defaultID = configuration.defaultLayout.id
         if previous == nil || previous?.defaultLayout.id != defaultID {
             layoutID = defaultID

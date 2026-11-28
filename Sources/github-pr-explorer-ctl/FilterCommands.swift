@@ -317,10 +317,6 @@ extension ControlCommand {
         }
         return text
     }
-
-    private static func historyWarning(_ store: ConfigurationStore) -> String {
-        store.historyProblem.map { "The change was made, but it was not kept as a version: \($0)\n" } ?? ""
-    }
 }
 
 /// `--key value` options, flags with no value, and positional words.

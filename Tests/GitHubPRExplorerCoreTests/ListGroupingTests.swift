@@ -68,6 +68,35 @@ import Testing
         #expect(sections(.reviewState).map(\.title) == choices.reviewStates.map(\.name))
     }
 
+    @Test func shorthandsNameRepositoryAndAuthorSections() {
+        let viewer = world.viewer.person
+        let other = open.map(\.author).first { $0.login != viewer.login }!
+        let shorthands = Shorthands([
+            Shorthand(kind: .repository, target: MockCast.api.fullName, shorthand: "API"),
+            Shorthand(kind: .person, target: viewer.login, shorthand: "Me"),
+            Shorthand(kind: .person, target: other.login, shorthand: "Short"),
+        ])
+        let plain = sections(.repository)
+        let repositories = ListGrouping.repository.sections(of: open, viewer: world.viewer, status: status, shorthands: shorthands)
+        // The same sections in the same order: only the names change.
+        #expect(repositories.map(\.id) == plain.map(\.id))
+        let api = repositories.first { $0.id == "repository:\(MockCast.api.fullName)" }
+        #expect(api?.title == "API")
+        #expect(api?.name.fullName == MockCast.api.fullName)
+        #expect(api?.name.isShortened == true)
+        #expect(repositories.filter { $0.name.isShortened }.count == 1)
+
+        let authors = ListGrouping.author.sections(of: open, viewer: world.viewer, status: status, shorthands: shorthands)
+        #expect(authors.map(\.id) == sections(.author).map(\.id))
+        #expect(authors.first?.title == "Me (you)")
+        #expect(authors.first?.name.isShortened == true)
+        #expect(authors.first { $0.id == "author:\(other.login)" }?.title == "Short")
+
+        // With none set, a section's name is its full name, unshortened.
+        #expect(plain.allSatisfy { !$0.name.isShortened && $0.name.fullName == $0.title })
+        #expect(sections(.author).allSatisfy { !$0.name.isShortened && $0.name.fullName == $0.title })
+    }
+
     @Test func theViewerIsTheFirstAuthor() {
         let groups = sections(.author)
         let viewer = world.viewer.person

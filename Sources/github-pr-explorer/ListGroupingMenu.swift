@@ -55,7 +55,7 @@ struct ListSectionHeader: View {
     var body: some View {
         let collapsed = model.collapsedSections.contains(section.id)
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(section.title)
+            ShortenedName(section.name)
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(1)
@@ -77,7 +77,7 @@ struct ListSectionHeader: View {
             withAnimation { model.toggleSection(section.id, all: all) }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("\(section.title), \(section.count) pull request\(section.count == 1 ? "" : "s")")
+        .accessibilityLabel("\(section.name.accessibilityLabel), \(section.count) pull request\(section.count == 1 ? "" : "s")")
         .accessibilityValue(collapsed ? "Collapsed" : "Expanded")
         .accessibilityAddTraits(.isButton)
         .help(collapsed ? "Click to expand. Option-click to expand every section."

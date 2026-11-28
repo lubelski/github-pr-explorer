@@ -34,14 +34,23 @@ public enum ListGrouping: String, Codable, Sendable, Hashable, CaseIterable, Ide
     public struct Section: Sendable, Hashable, Identifiable {
         /// Unique within one grouping, such as `repository:acme/api`.
         public var id: String
-        public var title: String
+        /// The group's name as the header draws it, with a shorthand in place of a
+        /// repository's or a person's full name when one is set.
+        public var name: DisplayName
         public var pullRequests: [PullRequest]
 
-        public init(id: String, title: String, pullRequests: [PullRequest]) {
+        public init(id: String, name: DisplayName, pullRequests: [PullRequest]) {
             self.id = id
-            self.title = title
+            self.name = name
             self.pullRequests = pullRequests
         }
+
+        public init(id: String, title: String, pullRequests: [PullRequest]) {
+            self.init(id: id, name: DisplayName(title), pullRequests: pullRequests)
+        }
+
+        /// What the header draws.
+        public var title: String { name.text }
 
         public var count: Int { pullRequests.count }
     }
@@ -49,16 +58,19 @@ public enum ListGrouping: String, Codable, Sendable, Hashable, CaseIterable, Ide
     /// The pull requests in sections, in the order given inside each. With `none` it is one
     /// section with an empty title holding every pull request, or nothing when there are none.
     /// A group with no pull requests is never a section. `status` is each pull request's
-    /// status sentence, which the caller usually has already.
+    /// status sentence, which the caller usually has already. A repository's or an author's
+    /// section is named by its shorthand when `shorthands` sets one, and is still ordered by
+    /// the full name.
     public func sections(of pullRequests: [PullRequest], viewer: Viewer,
-                         status: (PullRequest) -> StatusSentence) -> [Section] {
+                         status: (PullRequest) -> StatusSentence,
+                         shorthands: Shorthands = .none) -> [Section] {
         guard !pullRequests.isEmpty else { return [] }
         switch self {
         case .none:
             return [Section(id: "all", title: "", pullRequests: pullRequests)]
         case .repository:
             return grouped(pullRequests, key: \.repository, order: { $0.sorted() }) {
-                Section(id: "repository:\($0.fullName)", title: $0.fullName, pullRequests: $1)
+                Section(id: "repository:\($0.fullName)", name: shorthands.name(for: $0), pullRequests: $1)
             }
         case .author:
             var people: [String: Person] = [:]
@@ -66,8 +78,12 @@ public enum ListGrouping: String, Codable, Sendable, Hashable, CaseIterable, Ide
             return grouped(pullRequests, key: \.author.login,
                            order: { logins in logins.compactMap { people[$0] }.sorted(by: viewer.listsBefore).map(\.login) }) { login, rows in
                 let person = people[login] ?? Person(login: login, displayName: login)
-                let title = viewer.isViewer(person) ? "\(person.displayName) (you)" : person.displayName
-                return Section(id: "author:\(login)", title: title, pullRequests: rows)
+                var name = shorthands.name(for: person)
+                if viewer.isViewer(person) {
+                    name.text += " (you)"
+                    if !name.isShortened { name.fullName = name.text }
+                }
+                return Section(id: "author:\(login)", name: name, pullRequests: rows)
             }
         case .status:
             return grouped(pullRequests, key: { status($0).badge },

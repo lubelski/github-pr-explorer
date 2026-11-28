@@ -216,7 +216,8 @@ struct PullRequestList: View {
     private func rows(_ pullRequests: [PullRequest]) -> some View {
         ForEach(pullRequests) { pr in
             PullRequestRow(pullRequest: pr, status: model.status(for: pr),
-                           isViewer: model.index.viewer.isViewer(pr.author))
+                           isViewer: model.index.viewer.isViewer(pr.author),
+                           shorthands: model.shorthands)
                 .tag(pr.id)
                 .id(pr.id)
                 .listRowBackground(rendering && model.selection == pr.id
@@ -326,6 +327,8 @@ struct PullRequestRow: View {
     let status: StatusSentence
     /// The viewer wrote it, so the author shows as "you".
     var isViewer = false
+    /// Short names for the repository and the author. The hover keeps the full names.
+    var shorthands: Shorthands = .none
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -352,18 +355,20 @@ struct PullRequestRow: View {
         .accessibilityElement(children: .combine)
     }
 
-    /// "acme/api #4826 · Ada Park", or without the author when that does not fit.
+    /// "acme/api #4826 · Ada Park", or without the author when that does not fit. A shorthand
+    /// takes the place of the repository's or the author's name, as in "API #4826 · Ada".
     private var repositoryLine: some View {
-        ViewThatFits(in: .horizontal) {
+        let repository = shorthands.name(for: pullRequest.repository).text
+        return ViewThatFits(in: .horizontal) {
             HStack(spacing: 0) {
-                Text(verbatim: pullRequest.repository.fullName)
+                Text(verbatim: repository)
                 Text(verbatim: " #\(pullRequest.number)")
                 Text(verbatim: " · ").foregroundStyle(.tertiary)
-                Text(isViewer ? "you" : pullRequest.author.displayName)
+                Text(isViewer ? "you" : shorthands.name(for: pullRequest.author).text)
             }
             .fixedSize()
             HStack(spacing: 0) {
-                Text(verbatim: pullRequest.repository.fullName)
+                Text(verbatim: repository)
                     .truncationMode(.middle)
                 Text(verbatim: " #\(pullRequest.number)")
                     .fixedSize()

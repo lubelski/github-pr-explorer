@@ -26,6 +26,7 @@ struct PullRequestPage: View {
             }
         }
         .background(Style.pageBackground)
+        .environment(\.shorthands, model.shorthands)
         .environment(\.pageActions, PageActions(
             openFilePath: model.panePath.openFilePath,
             openFile: { path in change { model.openFile(path) } },
@@ -103,7 +104,7 @@ struct PageHeader: View {
         HStack(alignment: .top, spacing: 24) {
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 8) {
-                    Text(verbatim: "\(pr.repository.fullName) #\(pr.number)")
+                    ShortenedName(model.shorthands.reference(of: pr))
                         .font(.system(size: 12))
                         .foregroundStyle(.secondary)
                         .textSelection(.enabled)

@@ -9,6 +9,8 @@ public enum ChangeAuthor: String, Sendable, Hashable, CaseIterable {
     case editedOnDisk = "edited on disk"
     /// `github-pr-explorer-ctl`.
     case commandLine = "ctl"
+    /// An agent, through `github-pr-explorer-ctl mcp`.
+    case mcp = "MCP"
     /// The app itself, such as creating the folder on first run.
     case app = "app"
 }

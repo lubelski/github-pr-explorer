@@ -111,4 +111,74 @@ import Testing
         #expect(ListGrouping.allCases.map(\.name) == ["None", "Repository", "Author", "Status", "Review state"])
         #expect(ListGrouping.allCases.map(\.rawValue) == ["none", "repository", "author", "status", "reviewState"])
     }
+
+    // MARK: Collapsing
+
+    @Test func collapsedSectionsHideTheirRowsInScreenOrder() {
+        let groups = sections(.repository)
+        #expect(groups.count >= 3)
+        let collapsed: Set<String> = [groups[1].id]
+        let visible = ListGrouping.repository.visible(groups, collapsed: collapsed)
+        let expected = ([groups[0]] + groups.dropFirst(2)).flatMap(\.pullRequests).map(\.id)
+        #expect(visible.map(\.id) == expected)
+        #expect(ListGrouping.repository.visible(groups, collapsed: []).map(\.id) == groups.flatMap(\.pullRequests).map(\.id))
+    }
+
+    @Test func theFlatListNeverFolds() {
+        let flat = sections(.none)
+        #expect(ListGrouping.none.visible(flat, collapsed: ["all"]).map(\.id) == open.map(\.id))
+        #expect(!ListGrouping.none.canCollapseAll(flat, collapsed: []))
+        #expect(!ListGrouping.none.canExpandAll(flat, collapsed: ["all"]))
+    }
+
+    @Test func idsOfSectionsNotShownAreHarmless() {
+        let groups = sections(.status)
+        let stale: Set<String> = ["repository:acme/gone", "author:nobody"]
+        #expect(ListGrouping.status.visible(groups, collapsed: stale).count == open.count)
+        #expect(!ListGrouping.status.canExpandAll(groups, collapsed: stale))
+    }
+
+    @Test func toggleOneSection() {
+        var collapsed: Set<String> = []
+        ListGrouping.toggle("repository:acme/api", in: &collapsed)
+        #expect(collapsed == ["repository:acme/api"])
+        ListGrouping.toggle("repository:acme/api", in: &collapsed)
+        #expect(collapsed.isEmpty)
+    }
+
+    @Test func optionClickTogglesEverySectionFromTheClickedOne() {
+        let groups = sections(.repository)
+        let all = Set(groups.map(\.id))
+        var collapsed: Set<String> = ["author:someone", groups[1].id]
+        // The clicked section is expanded, so every section collapses.
+        ListGrouping.toggleAll(from: groups[0].id, sections: groups, in: &collapsed)
+        #expect(collapsed == all.union(["author:someone"]))
+        // Now it is collapsed, so every section expands, and other groupings' ids stay.
+        ListGrouping.toggleAll(from: groups[0].id, sections: groups, in: &collapsed)
+        #expect(collapsed == ["author:someone"])
+        // From a collapsed section while others are expanded: every section expands.
+        collapsed = [groups[2].id]
+        ListGrouping.toggleAll(from: groups[2].id, sections: groups, in: &collapsed)
+        #expect(collapsed.isEmpty)
+    }
+
+    @Test func collapseAllAndExpandAllAreOnlyOfferedWhenTheyChangeSomething() {
+        let groups = sections(.reviewState)
+        var collapsed: Set<String> = []
+        #expect(ListGrouping.reviewState.canCollapseAll(groups, collapsed: collapsed))
+        #expect(!ListGrouping.reviewState.canExpandAll(groups, collapsed: collapsed))
+        ListGrouping.setAll(collapsed: true, sections: groups, in: &collapsed)
+        #expect(!ListGrouping.reviewState.canCollapseAll(groups, collapsed: collapsed))
+        #expect(ListGrouping.reviewState.canExpandAll(groups, collapsed: collapsed))
+        #expect(ListGrouping.reviewState.visible(groups, collapsed: collapsed).isEmpty)
+        ListGrouping.setAll(collapsed: false, sections: groups, in: &collapsed)
+        #expect(collapsed.isEmpty)
+    }
+
+    @Test func findsTheSectionHoldingAPullRequest() {
+        let groups = sections(.author)
+        let pr = groups[1].pullRequests[0]
+        #expect(ListGrouping.sectionID(containing: pr.id, in: groups) == groups[1].id)
+        #expect(ListGrouping.sectionID(containing: "no-such-id", in: groups) == nil)
+    }
 }

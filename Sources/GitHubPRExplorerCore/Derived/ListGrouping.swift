@@ -89,6 +89,48 @@ public enum ListGrouping: String, Codable, Sendable, Hashable, CaseIterable, Ide
         return sections(of: pullRequests, viewer: viewer, status: status).flatMap(\.pullRequests)
     }
 
+    // MARK: Collapsed sections
+
+    /// The rows the list shows when the sections whose ids are in `collapsed` are folded
+    /// away, in the order on screen. With `none` nothing folds: the flat list has no sections.
+    public func visible(_ sections: [Section], collapsed: Set<String>) -> [PullRequest] {
+        guard self != .none else { return sections.flatMap(\.pullRequests) }
+        return sections.filter { !collapsed.contains($0.id) }.flatMap(\.pullRequests)
+    }
+
+    /// Collapses the section when it is expanded and expands it when it is collapsed.
+    public static func toggle(_ id: String, in collapsed: inout Set<String>) {
+        if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
+    }
+
+    /// Option-click on a header, as in Finder: when the clicked section was expanded every
+    /// section collapses, otherwise every section expands. Ids of sections not shown now are
+    /// left as they are.
+    public static func toggleAll(from id: String, sections: [Section], in collapsed: inout Set<String>) {
+        setAll(collapsed: !collapsed.contains(id), sections: sections, in: &collapsed)
+    }
+
+    /// Collapses or expands every section shown.
+    public static func setAll(collapsed collapse: Bool, sections: [Section], in collapsed: inout Set<String>) {
+        let ids = Set(sections.map(\.id))
+        if collapse { collapsed.formUnion(ids) } else { collapsed.subtract(ids) }
+    }
+
+    /// Whether Collapse All would change anything: some section shown is expanded.
+    public func canCollapseAll(_ sections: [Section], collapsed: Set<String>) -> Bool {
+        self != .none && sections.contains { !collapsed.contains($0.id) }
+    }
+
+    /// Whether Expand All would change anything: some section shown is collapsed.
+    public func canExpandAll(_ sections: [Section], collapsed: Set<String>) -> Bool {
+        self != .none && sections.contains { collapsed.contains($0.id) }
+    }
+
+    /// The id of the section that holds the pull request, or nil when no section does.
+    public static func sectionID(containing id: PullRequest.ID, in sections: [Section]) -> String? {
+        sections.first { section in section.pullRequests.contains { $0.id == id } }?.id
+    }
+
     private func grouped<Key: Hashable>(_ pullRequests: [PullRequest], key: (PullRequest) -> Key,
                                         order: (Set<Key>) -> [Key],
                                         section: (Key, [PullRequest]) -> Section) -> [Section] {

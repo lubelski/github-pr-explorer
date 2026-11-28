@@ -31,14 +31,23 @@ final class AppModel {
     /// Like the search, they are not remembered across launches: a filter worth keeping is a
     /// saved view, which the filter language will bring.
     var listFilter = ListFilter.none
-    /// The pull request shown. Choosing another closes its panes: they belong to the pull
-    /// request they were opened on.
-    var selection: PullRequest.ID? {
+    /// The row selected in the list: a pull request, or a title row of the tree. Choosing
+    /// another pull request closes the panes: they belong to the pull request they were opened
+    /// on. Remembered across launches as window state.
+    var listSelection: ListSelection? {
         didSet {
-            if selection != oldValue { panePath = PaneStackPath() }
-            if let selection, selection != oldValue { onSelect?(selection) }
-            if selection != oldValue { revealSelection() }
+            guard listSelection != oldValue else { return }
+            if selection != oldValue?.pullRequestID { panePath = PaneStackPath() }
+            if let selection, selection != oldValue?.pullRequestID { onSelect?(selection) }
+            revealSelection()
+            remember(listSelection?.storedValue, for: WindowState.selection)
         }
+    }
+
+    /// The pull request shown, or nil when nothing or a title row is selected.
+    var selection: PullRequest.ID? {
+        get { listSelection?.pullRequestID }
+        set { listSelection = newValue.map(ListSelection.pullRequest) }
     }
     /// The panes open over the page: a file's diff, then a thread. See `PullRequestPane`.
     var panePath = PaneStackPath()
@@ -56,16 +65,30 @@ final class AppModel {
     var listView: FixedListView {
         didSet { if listView != oldValue { remember(listView.rawValue, for: WindowState.listView) } }
     }
-    /// How the list is drawn: one run of rows, or in sections. Remembered across launches as
-    /// window state, like the view.
+    /// How the list is drawn: one run of rows, or a tree of up to two levels. Remembered across
+    /// launches as window state, like the view.
     var listGrouping: ListGrouping {
-        didSet { if listGrouping != oldValue { remember(listGrouping.rawValue, for: WindowState.listGrouping) } }
+        didSet {
+            guard listGrouping != oldValue else { return }
+            remember(listGrouping.storedValue, for: WindowState.listGrouping)
+            keepSelection(after: oldValue)
+        }
     }
-    /// The ids of the list's collapsed sections. Ids carry their grouping, such as
-    /// `repository:acme/api`, so one set serves every grouping, and an id with no section now
+    /// The ids of the tree's closed title rows. Ids carry their grouping, such as
+    /// `repository:acme/api`, so one set serves every grouping, and an id with no row now
     /// does nothing. Remembered across launches as window state.
-    var collapsedSections: Set<String> {
-        didSet { if collapsedSections != oldValue { remember(collapsedSections.sorted(), for: WindowState.collapsedSections) } }
+    ///
+    /// When a row closes over the selected row, the row that closed becomes the selection, as
+    /// in Finder, so the selection is always a row on screen.
+    var closedGroups: Set<String> {
+        didSet {
+            guard closedGroups != oldValue else { return }
+            remember(closedGroups.sorted(), for: WindowState.closedGroups)
+            if let listSelection, let shown = listTree.nearestVisible(listSelection, closed: closedGroups),
+               shown != listSelection {
+                self.listSelection = shown
+            }
+        }
     }
     /// The list's width, which the person sets by dragging its edge. Remembered across launches
     /// as window state when a drag ends, through `rememberListWidth()`.
@@ -88,11 +111,30 @@ final class AppModel {
         self.windowState = windowState
         self.layoutID = LayoutLibrary.fallbackID
         self.listView = windowState?.string(forKey: WindowState.listView).flatMap(FixedListView.init(rawValue:)) ?? .standard
-        self.listGrouping = windowState?.string(forKey: WindowState.listGrouping).flatMap(ListGrouping.init(rawValue:)) ?? .standard
-        self.collapsedSections = Set(windowState?.stringArray(forKey: WindowState.collapsedSections) ?? [])
+        // A value saved by the one-level grouping, such as `repository`, reads as that level.
+        self.listGrouping = windowState?.string(forKey: WindowState.listGrouping).map(ListGrouping.init(storedValue:)) ?? .standard
+        self.closedGroups = Set(windowState?.stringArray(forKey: WindowState.closedGroups) ?? [])
         let width = windowState?.double(forKey: WindowState.listWidth) ?? 0
         self.listWidth = width > 0 ? Self.clampedListWidth(width) : Self.defaultListWidth
-        self.selection = selection.flatMap { index.pullRequest($0)?.id } ?? index.allPullRequests.first { $0.state == .open }?.id
+        self.rememberedSelection = windowState?.string(forKey: WindowState.selection).flatMap(ListSelection.init(storedValue:))
+        let fallback = selection.flatMap { index.pullRequest($0)?.id } ?? index.allPullRequests.first { $0.state == .open }?.id
+        self.listSelection = fallback.map(ListSelection.pullRequest)
+        restoreRememberedSelection()
+    }
+
+    /// The selection remembered from the last launch, until the index holds its row. In GitHub
+    /// mode the window opens on the mock world before the saved index arrives.
+    @ObservationIgnored private var rememberedSelection: ListSelection?
+
+    private func restoreRememberedSelection() {
+        guard let remembered = rememberedSelection else { return }
+        let found: Bool = switch remembered {
+        case .pullRequest(let id): index.pullRequest(id: id) != nil
+        case .group: listTree.contains(remembered)
+        }
+        guard found else { return }
+        rememberedSelection = nil
+        listSelection = remembered
     }
 
     /// The pull requests in the chosen view that match the search and the filters, most
@@ -101,34 +143,61 @@ final class AppModel {
         listView.pullRequests(in: searchedAndFiltered, viewer: index.viewer)
     }
 
-    /// The listed pull requests in the sections the list draws. With no grouping, one section
-    /// holds them all.
-    var listSections: [ListGrouping.Section] {
-        listGrouping.sections(of: listedPullRequests, viewer: index.viewer, status: status(for:))
+    /// The listed pull requests as the tree the list draws. With no grouping it has no title
+    /// rows.
+    var listTree: ListTree {
+        ListTree(grouping: listGrouping, pullRequests: listedPullRequests, viewer: index.viewer, status: status(for:))
     }
 
-    /// Collapses or expands one section, or with `all` every section from it, as Option-click does.
-    func toggleSection(_ id: String, all: Bool = false) {
-        if all {
-            ListGrouping.toggleAll(from: id, sections: listSections, in: &collapsedSections)
+    /// The title row selected, if a title row is.
+    var selectedGroup: ListGroup? {
+        listSelection?.groupID.flatMap { listTree.group(id: $0) }
+    }
+
+    /// Opens or closes one title row, or with `level` every row at its level, as Option-click
+    /// on a triangle does.
+    func toggleGroup(_ id: String, level: Bool = false) {
+        if level {
+            listTree.toggleLevel(from: id, in: &closedGroups)
         } else {
-            ListGrouping.toggle(id, in: &collapsedSections)
+            ListTree.toggle(id, in: &closedGroups)
         }
     }
 
-    /// Collapse All or Expand All in the group by menu.
-    func setAllSections(collapsed: Bool) {
-        ListGrouping.setAll(collapsed: collapsed, sections: listSections, in: &collapsedSections)
+    /// Opens or closes a title row.
+    func setGroup(_ id: String, open: Bool) {
+        if open { closedGroups.remove(id) } else { closedGroups.insert(id) }
     }
 
-    /// Expands the section that holds the selected pull request, so the selection is never a row
-    /// that is folded away. Called when the selection changes and when a new index moves the
-    /// selected pull request into another section, never when the person collapses a section.
+    /// Collapse All or Expand All in the group by menu.
+    func setAllGroups(closed: Bool) {
+        listTree.setAll(closed: closed, in: &closedGroups)
+    }
+
+    /// Opens the title rows that hold the selection, so a selection made some other way than
+    /// by clicking, such as by a search, the arrow keys in the search field or a sync, always
+    /// shows. Closing a row over the selection moves the selection instead: see `closedGroups`.
     private func revealSelection() {
-        guard listGrouping != .none, let selection,
-              let id = ListGrouping.sectionID(containing: selection, in: listSections),
-              collapsedSections.contains(id) else { return }
-        collapsedSections.remove(id)
+        guard !listGrouping.isNone, let listSelection else { return }
+        let hiding = listTree.ancestorIDs(of: listSelection).filter(closedGroups.contains)
+        guard !hiding.isEmpty else { return }
+        closedGroups.subtract(hiding)
+    }
+
+    /// After the grouping changes: a selected pull request stays selected and shows, and a
+    /// selected title row that is no longer in the tree gives way to the first pull request
+    /// it held.
+    private func keepSelection(after old: ListGrouping) {
+        guard let listSelection else { return }
+        switch listSelection {
+        case .pullRequest:
+            revealSelection()
+        case .group(let id):
+            guard !listTree.contains(listSelection) else { return }
+            let before = ListTree(grouping: old, pullRequests: listedPullRequests, viewer: index.viewer, status: status(for:))
+            let first = before.group(id: id)?.pullRequests.first ?? listTree.ordered.first
+            self.listSelection = first.map { .pullRequest($0.id) }
+        }
     }
 
     /// How many pull requests each view holds, within the search and the filters, so a view's
@@ -181,11 +250,14 @@ final class AppModel {
         static let listView = "MainWindow.listView"
         static let listWidth = "MainWindow.listWidth"
         static let listGrouping = "MainWindow.listGrouping"
-        static let collapsedSections = "MainWindow.collapsedSections"
+        /// The key the one-level grouping used for its collapsed sections. Their ids are the
+        /// tree's ids for the same rows, so the set is kept under its old name.
+        static let closedGroups = "MainWindow.collapsedSections"
+        static let selection = "MainWindow.selection"
     }
 
-    private func remember(_ value: Any, for key: String) {
-        windowState?.set(value, forKey: key)
+    private func remember(_ value: Any?, for key: String) {
+        if let value { windowState?.set(value, forKey: key) } else { windowState?.removeObject(forKey: key) }
     }
 
     var selectedPullRequest: PullRequest? {
@@ -221,16 +293,18 @@ final class AppModel {
     /// Shows an index from the sync. The open page stays open when its pull request is still
     /// there, and its panes stay open when its files did not change.
     func showGitHub(index: any PullRequestIndex, now: Date, summary: SyncStatusSummary?) {
-        let sectionBefore = selection.flatMap { ListGrouping.sectionID(containing: $0, in: listSections) }
+        let pathBefore = listSelection.map { listTree.ancestorIDs(of: $0) }
         replaceIndex(index, now: now)
         syncSummary = summary
-        if selection.flatMap(index.pullRequest(id:)) == nil {
+        restoreRememberedSelection()
+        let tree = listTree
+        if let listSelection, tree.contains(listSelection) || listSelection.pullRequestID.flatMap(index.pullRequest(id:)) != nil {
+            // The sync moved the selected pull request under another title row.
+            if tree.ancestorIDs(of: listSelection) != pathBefore { revealSelection() }
+        } else {
             // The first row on screen, which changing the selection then reveals if need be.
-            let first = listGrouping.visible(listSections, collapsed: collapsedSections).first ?? listedPullRequests.first
+            let first = tree.visiblePullRequests(closed: closedGroups).first ?? listedPullRequests.first
             selection = first?.id ?? index.allPullRequests.first { $0.state == .open }?.id
-        } else if selection.flatMap({ ListGrouping.sectionID(containing: $0, in: listSections) }) != sectionBefore {
-            // The sync moved the selected pull request into another section.
-            revealSelection()
         }
     }
 
@@ -306,14 +380,43 @@ final class AppModel {
     }
 
     /// Moves the selection up or down the list, for the arrow keys while the search field has
-    /// the keyboard. It follows the order on screen, across sections.
+    /// the keyboard. It follows the rows on screen, title rows included.
     func moveSelection(by offset: Int) {
-        let listed = listGrouping.visible(listSections, collapsed: collapsedSections)
-        guard !listed.isEmpty else { return }
-        guard let current = selection, let position = listed.firstIndex(where: { $0.id == current }) else {
-            selection = (offset >= 0 ? listed.first : listed.last)?.id
+        let rows = listTree.rows(closed: closedGroups).map(\.id)
+        guard !rows.isEmpty else { return }
+        guard let current = listSelection, let position = rows.firstIndex(of: current) else {
+            listSelection = offset >= 0 ? rows.first : rows.last
             return
         }
-        selection = listed[min(max(0, position + offset), listed.count - 1)].id
+        listSelection = rows[min(max(0, position + offset), rows.count - 1)]
+    }
+
+    /// Left arrow, as in Finder: closes an open title row, and otherwise selects the row that
+    /// holds the selection.
+    func moveSelectionOut() {
+        guard let current = listSelection else { return }
+        if let id = current.groupID, !closedGroups.contains(id) {
+            closedGroups.insert(id)
+        } else if let parent = listTree.parent(of: current) {
+            listSelection = parent
+        }
+    }
+
+    /// Right arrow: opens a closed title row, and on an open one selects its first row.
+    func moveSelectionIn() {
+        guard let id = listSelection?.groupID, let group = listTree.group(id: id) else { return }
+        if closedGroups.contains(id) {
+            closedGroups.remove(id)
+        } else if let child = group.children.first {
+            listSelection = .group(child.id)
+        } else if let pr = group.pullRequests.first {
+            listSelection = .pullRequest(pr.id)
+        }
+    }
+
+    /// Double-click or Return on a title row opens or closes it.
+    func toggleSelectedGroup() {
+        guard let id = listSelection?.groupID else { return }
+        ListTree.toggle(id, in: &closedGroups)
     }
 }

@@ -158,6 +158,15 @@ final class AppModel {
         listSelection?.groupID.flatMap { listTree.group(id: $0) }
     }
 
+    /// How many pull requests a title row would hold in the chosen view without the search and
+    /// the filters, so the overview can say it is narrowed. Nil when neither narrows the list.
+    func unnarrowedCount(ofGroup id: String) -> Int? {
+        guard !searchText.isEmpty || !listFilter.isEmpty else { return nil }
+        let all = listView.pullRequests(in: index.allPullRequests, viewer: index.viewer)
+        return ListTree(grouping: listGrouping, pullRequests: all, viewer: index.viewer, status: status(for:))
+            .group(id: id)?.count
+    }
+
     /// Opens or closes one title row, or with `level` every row at its level, as Option-click
     /// on a triangle does.
     func toggleGroup(_ id: String, level: Bool = false) {

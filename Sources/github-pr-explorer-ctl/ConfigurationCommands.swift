@@ -7,7 +7,7 @@ extension ControlCommand {
     static let configHelp = """
         \(name) config <command> [--config <folder>]
 
-        The configuration folder holds settings.json and layouts/*.json. The app watches it and
+        The configuration folder holds settings.json, saved-filters.json and layouts/*.json. The app watches it and
         applies a change as soon as it is saved. Every valid change is kept as a version.
 
         Commands:
@@ -135,7 +135,7 @@ extension ControlCommand {
             return .success("No configuration folder at \(store.folder.path) yet. The defaults and the built-in layouts are in use.\n")
         }
         let snapshot = store.reload()
-        let files = [ConfigurationSettings.fileName] + (((try? FileManager.default.contentsOfDirectory(atPath: store.layoutsURL.path)) ?? [])
+        let files = [ConfigurationSettings.fileName, SavedFilterFile.fileName] + (((try? FileManager.default.contentsOfDirectory(atPath: store.layoutsURL.path)) ?? [])
             .filter { $0.hasSuffix(".json") && !$0.hasPrefix(".") }.sorted().map { "\(ConfigurationStore.layoutsFolderName)/\($0)" })
         var lines: [String] = []
         for file in files {
@@ -172,6 +172,8 @@ extension ControlCommand {
         var folderExists: Bool
         var settings: ConfigurationSettings
         var layouts: [Layout]
+        /// Everything first, then the saved filters in their order.
+        var savedFilters: [SavedFilter]
         var problems: [ConfigurationProblem]
     }
 
@@ -186,6 +188,7 @@ extension ControlCommand {
                 return .init(id: entry.id, name: entry.layout.name, source: entry.source.file ?? "built in",
                              overridesBuiltIn: overrides, isDefault: entry.id == defaultID)
             },
+            savedFilters: snapshot.filters,
             problems: snapshot.problems)
     }
 
@@ -208,6 +211,10 @@ extension ControlCommand {
             for experiment in Experiment.allCases {
                 text += "  experiments.\(experiment.key)  \(settings.isOn(experiment))\n"
             }
+        }
+        text += "\nSaved filters (\(SavedFilterFile.fileName)), in tab order\n"
+        for saved in report.savedFilters {
+            text += "  \(saved.id)\t\(saved.name)\t\(saved.isEverything ? "fixed" : saved.showsAsTab ? "tab" : "hidden")\t\(saved.summary)\n"
         }
         text += "\nLayouts\n"
         for layout in report.layouts {

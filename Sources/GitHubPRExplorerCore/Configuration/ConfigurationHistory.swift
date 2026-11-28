@@ -5,6 +5,8 @@ import Foundation
 public enum ChangeAuthor: String, Sendable, Hashable, CaseIterable {
     /// The app's Settings window.
     case settingsWindow = "Settings window"
+    /// The main window, such as Set Shorthand on a row of the pull request list.
+    case mainWindow = "main window"
     /// A person, an editor, or an agent changed a file, and the app or `ctl` noticed it.
     case editedOnDisk = "edited on disk"
     /// `github-pr-explorer-ctl`.

@@ -1,8 +1,8 @@
 import GitHubPRExplorerCore
 import SwiftUI
 
-/// Settings, Shorthands: short names the app draws in place of repositories and people, one
-/// list per kind, with a way to add, change and remove each. Everything here is
+/// Settings, Shorthands: short names the app draws in place of repositories, people and
+/// organizations, one list per kind, with a way to add, change and remove each. Everything here is
 /// `shorthands.json`. Two things that share a shorthand are allowed, with a warning beside each.
 struct ShorthandsSettingsView: View {
     let configuration: ConfigurationModel
@@ -13,7 +13,7 @@ struct ShorthandsSettingsView: View {
         let shorthands = configuration.snapshot.shorthands
         Form {
             Section {
-                Text("A shorthand is a short name drawn in place of a repository or a person, such as Web for acme/web, so a list is quicker to scan. Hover over a shortened name to see the full one. Search finds both.")
+                Text("A shorthand is a short name drawn in place of a repository, a person or an organization, such as Web for acme/web, so a list is quicker to scan. Hover over a shortened name to see the full one. Search finds both. Right-click a row of the pull request list to set one from there.")
                     .fixedSize(horizontal: false, vertical: true)
                 Text("Only the labels the app draws change. Titles, descriptions, comments, links, and anything sent to GitHub stay as written.")
                     .foregroundStyle(.secondary)
@@ -39,7 +39,7 @@ struct ShorthandsSettingsView: View {
                 }
             }
             Section {
-                FileFootnote(text: "Saved in shorthands.json in the configuration folder. Editing that file, or `github-pr-explorer-ctl shorthands set`, changes these too.")
+                FileFootnote(text: "Saved in shorthands.json in the configuration folder. Editing that file, Set Shorthand on a row of the pull request list, or `github-pr-explorer-ctl shorthands set` changes these too.")
             }
         }
         .formStyle(.grouped)
@@ -134,7 +134,7 @@ struct NewShorthandRow: View {
                     .buttonStyle(.borderless)
                     .menuIndicator(.hidden)
                     .fixedSize()
-                    .help(kind == .repository ? "Pick a repository the app knows" : "Pick a person the app knows")
+                    .help(pickHelp)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -148,6 +148,14 @@ struct NewShorthandRow: View {
                 .onSubmit(add)
             Button("Add", action: add)
                 .disabled(!canAdd)
+        }
+    }
+
+    private var pickHelp: String {
+        switch kind {
+        case .repository: "Pick a repository the app knows"
+        case .person: "Pick a person the app knows"
+        case .organization: "Pick an organization the app knows"
         }
     }
 

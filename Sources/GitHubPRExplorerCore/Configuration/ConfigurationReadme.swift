@@ -29,12 +29,14 @@ enum ConfigurationReadme {
           - `watchedRepositories`: repositories, as `"owner/name"`, whose every open pull
             request is fetched, besides the ones that involve you.
           A key left out takes its default. A key the app does not know makes the file invalid.
-        - `shorthands.json`: short names drawn in place of repositories and people, so lists
-          are quicker to scan. `formatVersion` (`1`) and `shorthands`, a list such as
-          `{"kind": "repository", "for": "acme/web", "shorthand": "Web"}` or
-          `{"kind": "person", "for": "ada-park", "shorthand": "Ada"}`. Display only: titles,
+        - `shorthands.json`: short names drawn in place of repositories, people and
+          organizations, so lists are quicker to scan. `formatVersion` (`1`) and `shorthands`,
+          a list such as `{"kind": "repository", "for": "acme/web", "shorthand": "Web"}`,
+          `{"kind": "person", "for": "ada-park", "shorthand": "Ada"}` or
+          `{"kind": "organization", "for": "acme", "shorthand": "Acme"}`. Display only: titles,
           comments, links and anything sent to GitHub are unchanged. Missing means none.
-          `github-pr-explorer-ctl shorthands set` and Settings, Shorthands write it.
+          `github-pr-explorer-ctl shorthands set`, its MCP tools, Settings, Shorthands and Set
+          Shorthand on a row of the pull request list write it.
         - `saved-filters.json`: the saved filters, in the order of their tabs. "Everything" is
           always first and is not in the file. Each saved filter has `id` (lowercase letters,
           digits and hyphens), `name`, `filter`, and optionally `groupBy` (one or two

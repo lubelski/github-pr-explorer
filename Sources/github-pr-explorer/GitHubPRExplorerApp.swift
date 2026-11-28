@@ -38,6 +38,8 @@ struct GitHubPRExplorerApp: App {
             // set from the file on launch and on every change.
             updater.updatesAutomatically = snapshot.settings.updatesAutomatically
         }
+        // The window writes saved filters through the same model as Settings.
+        model.savedFilterStore = configuration
         configuration.start()
         _model = State(initialValue: model)
         _configuration = State(initialValue: configuration)
@@ -75,7 +77,7 @@ struct GitHubPRExplorerApp: App {
         Settings {
             SettingsRootView(configuration: configuration,
                              context: SettingsContext(build: .current, world: .standard, updater: updater, sync: sync,
-                                                      index: { [model] in model.index }))
+                                                      index: { [model] in model.index }, now: { [model] in model.now }))
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: SettingsRootView.size.width, height: SettingsRootView.size.height)

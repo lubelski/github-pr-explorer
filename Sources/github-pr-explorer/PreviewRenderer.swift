@@ -187,17 +187,17 @@ enum PreviewRenderer {
             },
             State(name: "list-view-mine") {
                 let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 return model
             },
             State(name: "list-view-everything-open") {
                 let model = model(example)
-                model.listView = .everythingOpen
+                model.selectedFilterID = SavedFilter.everythingID
                 return model
             },
             State(name: "list-view-empty-search") {
                 let model = model(example)
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.searchText = "no such words anywhere"
                 return model
             },
@@ -205,55 +205,55 @@ enum PreviewRenderer {
             // and filters at the narrowest list. The menus themselves cannot be drawn offscreen.
             State(name: "list-filter-repository-and-status") {
                 let model = model(example)
-                model.listView = .everythingOpen
-                model.listFilter = ListFilter(repositories: [MockCast.api], statuses: [.blocked, .running])
+                model.selectedFilterID = SavedFilter.everythingID
+                model.appliedFilter = ListFilter(repositories: [MockCast.api], statuses: [.blocked, .running]).filter
                 return model
             },
             State(name: "list-filter-no-matches") {
                 let model = model(example)
-                model.listView = .mine
-                model.listFilter = ListFilter(authors: [MockCast.adaPark.login])
+                model.selectedFilterID = SavedFilter.mine.id
+                model.appliedFilter = ListFilter(authors: [MockCast.adaPark.login]).filter
                 return model
             },
             State(name: "list-filter-drafts-only") {
                 let model = model(example)
-                model.listView = .everythingOpen
-                model.listFilter = ListFilter(drafts: .only)
+                model.selectedFilterID = SavedFilter.everythingID
+                model.appliedFilter = ListFilter(drafts: .only).filter
                 return model
             },
             State(name: "list-filter-narrowest") {
                 let model = model(example)
                 model.listWidth = AppModel.listWidthRange.lowerBound
-                model.listFilter = ListFilter(repositories: [MockCast.api, MockCast.web], authors: [MockCast.adaPark.login],
-                                              reviewStates: [.reviewRequired])
+                model.appliedFilter = ListFilter(repositories: [MockCast.api, MockCast.web], authors: [MockCast.adaPark.login],
+                                              reviewStates: [.reviewRequired]).filter
                 return model
             },
             // The list in sections: by repository in "Mine", short enough to show several
             // sections, over everything open, and by status within a filter.
             State(name: "list-group-repository") {
                 let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.listGrouping = ListGrouping(.repository)
                 return model
             },
             // Two sections collapsed, one of them not the first.
             State(name: "list-group-repository-collapsed") {
                 let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.listGrouping = ListGrouping(.repository)
                 model.closedGroups = ["repository:acme/docs", "repository:acme/infra"]
                 return model
             },
             State(name: "list-group-repository-everything-open") {
                 let model = model(example)
-                model.listView = .everythingOpen
+                model.selectedFilterID = SavedFilter.everythingID
                 model.listGrouping = ListGrouping(.repository)
                 return model
             },
             State(name: "list-group-status-filtered") {
                 let model = model(example)
-                model.listView = .everythingOpen
-                model.listFilter = ListFilter(repositories: [MockCast.api])
+                model.selectedFilterID = SavedFilter.everythingID
+                model.appliedFilter = ListFilter(repositories: [MockCast.api]).filter
                 model.listGrouping = ListGrouping(.status)
                 return model
             },
@@ -261,7 +261,7 @@ enum PreviewRenderer {
             // open, with a pull request selected. Rows inside a repository read "#4715 · you".
             State(name: "list-tree-open") {
                 let model = model(first { $0.title == "Add audit events for session revocation" })
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.listGrouping = ListGrouping(.organization, then: .repository)
                 return model
             },
@@ -269,7 +269,7 @@ enum PreviewRenderer {
             // row keeps its count.
             State(name: "list-tree-partly-closed") {
                 let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) && $0.repository == MockCast.web })
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.listGrouping = ListGrouping(.organization, then: .repository)
                 model.closedGroups = ["organization:acme|repository:acme/api", "organization:acme|repository:acme/infra",
                                       "organization:globex"]
@@ -278,7 +278,7 @@ enum PreviewRenderer {
             // A title row selected: the right side shows its placeholder.
             State(name: "list-tree-title-row-selected") {
                 let model = model(example)
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.listGrouping = ListGrouping(.organization, then: .repository)
                 model.closedGroups = ["organization:acme|repository:acme/api", "organization:acme|repository:acme/docs"]
                 model.listSelection = .group("organization:acme|repository:acme/web")
@@ -287,7 +287,7 @@ enum PreviewRenderer {
             // An organization selected, everything open, with every row closed by Collapse All.
             State(name: "list-tree-all-closed") {
                 let model = model(example)
-                model.listView = .everythingOpen
+                model.selectedFilterID = SavedFilter.everythingID
                 model.listGrouping = ListGrouping(.organization, then: .repository)
                 model.setAllGroups(closed: true)
                 return model
@@ -295,14 +295,14 @@ enum PreviewRenderer {
             // One level: by organization only. Rows name the repository without its organization.
             State(name: "list-tree-one-level") {
                 let model = model(first { $0.title == "Add audit events for session revocation" })
-                model.listView = .mine
+                model.selectedFilterID = SavedFilter.mine.id
                 model.listGrouping = ListGrouping(.organization)
                 return model
             },
             // Two levels that are not organization and repository: by author, then status.
             State(name: "list-tree-author-then-status") {
                 let model = model(example)
-                model.listView = .needsMyReview
+                model.selectedFilterID = SavedFilter.needsMyReview.id
                 model.listGrouping = ListGrouping(.author, then: .status)
                 return model
             },
@@ -312,7 +312,7 @@ enum PreviewRenderer {
                 let long = longRepositoryPullRequests(from: index, now: world.now)
                 let longIndex = InMemoryPullRequestIndex(pullRequests: long + world.pullRequests, viewer: world.viewer)
                 let model = model(long.first?.reference, index: longIndex)
-                model.listView = .everythingOpen
+                model.selectedFilterID = SavedFilter.everythingID
                 return model
             },
             State(name: "list-narrowest") {

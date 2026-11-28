@@ -2,13 +2,30 @@ import Foundation
 import Testing
 @testable import GitHubPRExplorerCore
 
-@Suite struct FixedListViewTests {
+/// Everything and the default saved filters, "Needs my review" and "Mine". They took the place
+/// of the list's three fixed views, and keep exactly what those views kept.
+@Suite struct DefaultSavedFilterTests {
     let world = MockWorld.standard
     var viewer: Viewer { world.viewer }
     var open: [PullRequest] { world.pullRequests.filter { $0.state == .open } }
+    var context: FilterContext { FilterContext(viewer: viewer, now: world.now) }
 
-    func listed(_ view: FixedListView) -> [PullRequest] {
-        view.pullRequests(in: world.pullRequests, viewer: viewer)
+    enum View: CaseIterable { case needsMyReview, mine, everythingOpen }
+
+    func saved(_ view: View) -> SavedFilter {
+        switch view {
+        case .needsMyReview: .needsMyReview
+        case .mine: .mine
+        case .everythingOpen: .everything
+        }
+    }
+
+    func listed(_ view: View) -> [PullRequest] {
+        saved(view).evaluate(world.pullRequests, context: context).matches
+    }
+
+    func needsMyReview(_ pr: PullRequest) -> Bool {
+        saved(.needsMyReview).evaluate([pr], context: context).count == 1
     }
 
     func isPersonalRequest(_ request: ReviewRequest) -> Bool {
@@ -22,7 +39,7 @@ import Testing
     }
 
     @Test func everyViewListsOnlyOpenPullRequests() {
-        for view in FixedListView.allCases {
+        for view in View.allCases {
             #expect(listed(view).allSatisfy { $0.state == .open }, "\(view)")
         }
         // The world has closed and merged pull requests that would match otherwise.
@@ -52,14 +69,14 @@ import Testing
             !pr.reviewRequests.isEmpty && !pr.reviewRequests.contains { $0.isRequested(from: viewer) }
         }
         #expect(!otherTeamOnly.isEmpty)
-        #expect(otherTeamOnly.allSatisfy { !FixedListView.needsMyReview.includes($0, viewer: viewer) })
+        #expect(otherTeamOnly.allSatisfy { !needsMyReview($0) })
     }
 
     @Test func mineIsWhatTheViewerWrote() {
         #expect(listed(.mine).allSatisfy { viewer.isViewer($0.author) })
         #expect(listed(.mine).count == open.count { viewer.isViewer($0.author) })
         // Never asks the viewer to review their own pull request.
-        #expect(listed(.mine).allSatisfy { !FixedListView.needsMyReview.includes($0, viewer: viewer) })
+        #expect(listed(.mine).allSatisfy { !needsMyReview($0) })
     }
 
     @Test func everythingOpenIsEveryOpenPullRequestInOrder() {
@@ -68,12 +85,11 @@ import Testing
 
     @Test func theWorkedExampleNeedsTheViewersReview() throws {
         let pr = try #require(world.index.pullRequest(MockWorld.workedExample))
-        #expect(FixedListView.needsMyReview.includes(pr, viewer: viewer))
+        #expect(needsMyReview(pr))
     }
 
-    @Test func storedByStableNames() {
-        #expect(FixedListView.allCases.map(\.rawValue) == ["needsMyReview", "mine", "everythingOpen"])
-        #expect(FixedListView(rawValue: "needsMyReview") == .needsMyReview)
-        #expect(FixedListView.standard == .needsMyReview)
+    @Test func storedByStableIDs() {
+        #expect(SavedFilterFile.defaults.savedFilters.map(\.id) == ["needs-my-review", "mine"])
+        #expect(SavedFilter.everything.id == "everything")
     }
 }

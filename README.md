@@ -107,7 +107,7 @@ A file that does not validate is never applied. The app keeps using the last ver
 
 ### History
 
-The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `edited on disk` (an agent, an editor, or you), `ctl`, `MCP`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
+The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `main window`, `edited on disk` (an agent, an editor, or you), `ctl`, `MCP`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
 
 ### From the command line
 

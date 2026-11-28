@@ -12,6 +12,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
     case history
     case github
     case shorthands
+    case savedFilters
     case experiments
     case debugging
 
@@ -24,6 +25,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .history: "History"
         case .github: "GitHub"
         case .shorthands: "Shorthands"
+        case .savedFilters: "Saved Filters"
         case .experiments: "Experiments"
         case .debugging: "Debugging"
         }
@@ -36,6 +38,7 @@ enum SettingsSection: String, CaseIterable, Identifiable {
         case .history: "clock.arrow.circlepath"
         case .github: "arrow.triangle.pull"
         case .shorthands: "character.textbox"
+        case .savedFilters: "line.3.horizontal.decrease.circle"
         case .experiments: "flask"
         case .debugging: "ladybug"
         }
@@ -52,6 +55,8 @@ struct SettingsContext {
     /// The index the main window shows, for the repositories and people Shorthands offers.
     /// Without one, the mock world's.
     var index: (@MainActor () -> any PullRequestIndex)?
+    /// The main window's clock, for the counts Saved Filters shows. Without one, the mock world's.
+    var now: (@MainActor () -> Date)?
 }
 
 /// The Settings window's content: a fixed-width sidebar of sections, and the section beside it.
@@ -121,6 +126,8 @@ struct SettingsRootView: View {
         case .github: GitHubSettingsView(configuration: configuration, sync: context.sync)
         case .shorthands: ShorthandsSettingsView(configuration: configuration,
                                                  candidates: ShorthandCandidates(index: context.index?() ?? context.world.index))
+        case .savedFilters: SavedFiltersSettingsView(configuration: configuration, index: context.index?() ?? context.world.index,
+                                                     now: context.now?() ?? MockWorld.now)
         case .experiments: ExperimentsSettingsView(configuration: configuration)
         case .debugging: DebuggingSettingsView(configuration: configuration, context: context)
         }

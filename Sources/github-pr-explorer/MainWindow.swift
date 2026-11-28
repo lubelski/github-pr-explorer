@@ -144,16 +144,16 @@ struct PullRequestList: View {
                 .padding(.bottom, 8)
 
             HStack(spacing: 4) {
-                ListViewPicker(model: model)
+                SavedFilterTabBar(model: model)
                 ListGroupingMenu(model: model)
-                ListFilterMenu(model: model)
+                FilterButton(model: model)
             }
             .padding(.leading, 10)
             .padding(.trailing, 8)
             .padding(.bottom, 8)
 
-            if !model.listFilter.isEmpty {
-                ActiveFiltersLine(model: model)
+            if model.hasUnsavedFilter {
+                AppliedFilterLine(model: model)
                     .padding(.leading, 12)
                     .padding(.trailing, 8)
                     .padding(.bottom, 7)
@@ -162,21 +162,27 @@ struct PullRequestList: View {
             Divider()
 
             if listed.isEmpty {
-                if !model.listFilter.isEmpty {
+                if model.hasUnsavedFilter {
                     ContentUnavailableView {
                         Label("No Matches", systemImage: "line.3.horizontal.decrease.circle")
                     } description: {
                         Text(model.searchText.isEmpty
-                             ? "Nothing in \u{201C}\(model.listView.name)\u{201D} matches the filters."
-                             : "Nothing in \u{201C}\(model.listView.name)\u{201D} matches the search and the filters.")
+                             ? "No open pull request matches the filter applied on \u{201C}\(model.selectedFilter.name)\u{201D}."
+                             : "No open pull request matches the search and the filter applied on \u{201C}\(model.selectedFilter.name)\u{201D}.")
                     } actions: {
-                        Button("Clear Filters") { model.listFilter = .none }
+                        Button("Change Filter\u{2026}") { model.showsFilterPopover = true }
+                        Button("Clear Filter") { model.clearAppliedFilter() }
                     }
                     .frame(maxHeight: .infinity)
                 } else if model.searchText.isEmpty {
-                    ContentUnavailableView(emptyTitle, systemImage: "tray",
-                                           description: Text("Nothing in \u{201C}\(model.listView.name)\u{201D} right now."))
-                        .frame(maxHeight: .infinity)
+                    ContentUnavailableView {
+                        Label(model.selectedFilter.isEverything ? "No Open Pull Requests" : "Nothing Here Right Now", systemImage: "tray")
+                    } description: {
+                        Text(model.selectedFilter.isEverything
+                             ? "Every open pull request shows here."
+                             : "Nothing matches \u{201C}\(model.selectedFilter.name)\u{201D} right now: \(model.selectedFilter.summary)")
+                    }
+                    .frame(maxHeight: .infinity)
                 } else {
                     ContentUnavailableView.search(text: model.searchText)
                         .frame(maxHeight: .infinity)
@@ -235,14 +241,6 @@ struct PullRequestList: View {
         }
     }
 
-    private var emptyTitle: String {
-        switch model.listView {
-        case .needsMyReview: "No Reviews Waiting"
-        case .mine: "No Open Pull Requests of Yours"
-        case .everythingOpen: "No Open Pull Requests"
-        }
-    }
-
     private var searchField: some View {
         HStack(spacing: 5) {
             Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
@@ -264,65 +262,6 @@ struct PullRequestList: View {
         .padding(.horizontal, 7)
         .padding(.vertical, 5)
         .background(RoundedRectangle(cornerRadius: 7).fill(.quaternary.opacity(0.7)))
-    }
-}
-
-/// The fixed views above the list, each with its count within the search. The chosen one is
-/// filled with the accent color. When the list is too narrow for the full names, the short
-/// ones are used.
-struct ListViewPicker: View {
-    @Bindable var model: AppModel
-
-    var body: some View {
-        let counts = model.countsByView
-        ViewThatFits(in: .horizontal) {
-            row(counts: counts, short: false)
-            row(counts: counts, short: true)
-        }
-    }
-
-    private func row(counts: [FixedListView: Int], short: Bool) -> some View {
-        HStack(spacing: 4) {
-            ForEach(FixedListView.allCases) { view in
-                let selected = model.listView == view
-                Button {
-                    model.listView = view
-                } label: {
-                    HStack(spacing: 4) {
-                        Text(short ? view.shortName : view.name)
-                            .fontWeight(selected ? .semibold : .regular)
-                        Text("\(counts[view] ?? 0)")
-                            .monospacedDigit()
-                            .foregroundStyle(selected ? Color.accentColor : .secondary)
-                    }
-                    .lineLimit(1)
-                    .fixedSize()
-                    .padding(.horizontal, 7)
-                    .padding(.vertical, 4)
-                    .background {
-                        Capsule().fill(selected ? Color.accentColor.opacity(0.16) : Color.clear)
-                    }
-                    .overlay {
-                        Capsule().strokeBorder(selected ? Color.accentColor.opacity(0.45) : Color.clear)
-                    }
-                    .contentShape(Capsule())
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(selected ? .primary : .secondary)
-                .help(help(for: view))
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-            Spacer(minLength: 0)
-        }
-        .font(.system(size: 12))
-    }
-
-    private func help(for view: FixedListView) -> String {
-        switch view {
-        case .needsMyReview: "Open pull requests where a review is asked of you or one of your teams"
-        case .mine: "Open pull requests you wrote"
-        case .everythingOpen: "Every open pull request"
-        }
     }
 }
 

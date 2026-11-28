@@ -37,6 +37,7 @@ final class AppModel {
         didSet {
             if selection != oldValue { panePath = PaneStackPath() }
             if let selection, selection != oldValue { onSelect?(selection) }
+            if selection != oldValue { revealSelection() }
         }
     }
     /// The panes open over the page: a file's diff, then a thread. See `PullRequestPane`.
@@ -54,6 +55,17 @@ final class AppModel {
     /// Which of the fixed views the list shows. Remembered across launches as window state.
     var listView: FixedListView {
         didSet { if listView != oldValue { remember(listView.rawValue, for: WindowState.listView) } }
+    }
+    /// How the list is drawn: one run of rows, or in sections. Remembered across launches as
+    /// window state, like the view.
+    var listGrouping: ListGrouping {
+        didSet { if listGrouping != oldValue { remember(listGrouping.rawValue, for: WindowState.listGrouping) } }
+    }
+    /// The ids of the list's collapsed sections. Ids carry their grouping, such as
+    /// `repository:acme/api`, so one set serves every grouping, and an id with no section now
+    /// does nothing. Remembered across launches as window state.
+    var collapsedSections: Set<String> {
+        didSet { if collapsedSections != oldValue { remember(collapsedSections.sorted(), for: WindowState.collapsedSections) } }
     }
     /// The list's width, which the person sets by dragging its edge. Remembered across launches
     /// as window state when a drag ends, through `rememberListWidth()`.
@@ -76,6 +88,8 @@ final class AppModel {
         self.windowState = windowState
         self.layoutID = LayoutLibrary.fallbackID
         self.listView = windowState?.string(forKey: WindowState.listView).flatMap(FixedListView.init(rawValue:)) ?? .standard
+        self.listGrouping = windowState?.string(forKey: WindowState.listGrouping).flatMap(ListGrouping.init(rawValue:)) ?? .standard
+        self.collapsedSections = Set(windowState?.stringArray(forKey: WindowState.collapsedSections) ?? [])
         let width = windowState?.double(forKey: WindowState.listWidth) ?? 0
         self.listWidth = width > 0 ? Self.clampedListWidth(width) : Self.defaultListWidth
         self.selection = selection.flatMap { index.pullRequest($0)?.id } ?? index.allPullRequests.first { $0.state == .open }?.id
@@ -85,6 +99,36 @@ final class AppModel {
     /// recently updated first.
     var listedPullRequests: [PullRequest] {
         listView.pullRequests(in: searchedAndFiltered, viewer: index.viewer)
+    }
+
+    /// The listed pull requests in the sections the list draws. With no grouping, one section
+    /// holds them all.
+    var listSections: [ListGrouping.Section] {
+        listGrouping.sections(of: listedPullRequests, viewer: index.viewer, status: status(for:))
+    }
+
+    /// Collapses or expands one section, or with `all` every section from it, as Option-click does.
+    func toggleSection(_ id: String, all: Bool = false) {
+        if all {
+            ListGrouping.toggleAll(from: id, sections: listSections, in: &collapsedSections)
+        } else {
+            ListGrouping.toggle(id, in: &collapsedSections)
+        }
+    }
+
+    /// Collapse All or Expand All in the group by menu.
+    func setAllSections(collapsed: Bool) {
+        ListGrouping.setAll(collapsed: collapsed, sections: listSections, in: &collapsedSections)
+    }
+
+    /// Expands the section that holds the selected pull request, so the selection is never a row
+    /// that is folded away. Called when the selection changes and when a new index moves the
+    /// selected pull request into another section, never when the person collapses a section.
+    private func revealSelection() {
+        guard listGrouping != .none, let selection,
+              let id = ListGrouping.sectionID(containing: selection, in: listSections),
+              collapsedSections.contains(id) else { return }
+        collapsedSections.remove(id)
     }
 
     /// How many pull requests each view holds, within the search and the filters, so a view's
@@ -136,6 +180,8 @@ final class AppModel {
     private enum WindowState {
         static let listView = "MainWindow.listView"
         static let listWidth = "MainWindow.listWidth"
+        static let listGrouping = "MainWindow.listGrouping"
+        static let collapsedSections = "MainWindow.collapsedSections"
     }
 
     private func remember(_ value: Any, for key: String) {
@@ -175,10 +221,16 @@ final class AppModel {
     /// Shows an index from the sync. The open page stays open when its pull request is still
     /// there, and its panes stay open when its files did not change.
     func showGitHub(index: any PullRequestIndex, now: Date, summary: SyncStatusSummary?) {
+        let sectionBefore = selection.flatMap { ListGrouping.sectionID(containing: $0, in: listSections) }
         replaceIndex(index, now: now)
         syncSummary = summary
         if selection.flatMap(index.pullRequest(id:)) == nil {
-            selection = listedPullRequests.first?.id ?? index.allPullRequests.first { $0.state == .open }?.id
+            // The first row on screen, which changing the selection then reveals if need be.
+            let first = listGrouping.visible(listSections, collapsed: collapsedSections).first ?? listedPullRequests.first
+            selection = first?.id ?? index.allPullRequests.first { $0.state == .open }?.id
+        } else if selection.flatMap({ ListGrouping.sectionID(containing: $0, in: listSections) }) != sectionBefore {
+            // The sync moved the selected pull request into another section.
+            revealSelection()
         }
     }
 
@@ -254,9 +306,9 @@ final class AppModel {
     }
 
     /// Moves the selection up or down the list, for the arrow keys while the search field has
-    /// the keyboard.
+    /// the keyboard. It follows the order on screen, across sections.
     func moveSelection(by offset: Int) {
-        let listed = listedPullRequests
+        let listed = listGrouping.visible(listSections, collapsed: collapsedSections)
         guard !listed.isEmpty else { return }
         guard let current = selection, let position = listed.firstIndex(where: { $0.id == current }) else {
             selection = (offset >= 0 ? listed.first : listed.last)?.id

@@ -179,18 +179,25 @@ public struct ListFilterChoices: Sendable, Hashable {
         for login in filter.authors where authorsByLogin[login] == nil {
             authorsByLogin[login] = Person(login: login, displayName: login)
         }
-        authors = authorsByLogin.values.sorted { lhs, rhs in
-            let lhsViewer = viewer.isViewer(lhs), rhsViewer = viewer.isViewer(rhs)
-            if lhsViewer != rhsViewer { return lhsViewer }
-            let order = lhs.displayName.localizedStandardCompare(rhs.displayName)
-            if order != .orderedSame { return order == .orderedAscending }
-            return lhs.login < rhs.login
-        }
+        authors = authorsByLogin.values.sorted(by: viewer.listsBefore)
 
         let badges = Set(pullRequests.map { status($0).badge }).union(filter.statuses)
         statuses = StatusSentence.Badge.allCases.filter(badges.contains)
         let reviews = Set(pullRequests.map { ListFilter.ReviewState($0.reviewDecision) }).union(filter.reviewStates)
         reviewStates = ListFilter.ReviewState.allCases.filter(reviews.contains)
         hasDrafts = pullRequests.contains(where: \.isDraft) || filter.drafts != .shown
+    }
+}
+
+extension Viewer {
+    /// The order the list puts people in, wherever it lists them: the viewer first, then by
+    /// display name, then by login. The filter menu's authors and the list's author sections
+    /// both use it.
+    public func listsBefore(_ lhs: Person, _ rhs: Person) -> Bool {
+        let lhsViewer = isViewer(lhs), rhsViewer = isViewer(rhs)
+        if lhsViewer != rhsViewer { return lhsViewer }
+        let order = lhs.displayName.localizedStandardCompare(rhs.displayName)
+        if order != .orderedSame { return order == .orderedAscending }
+        return lhs.login < rhs.login
     }
 }

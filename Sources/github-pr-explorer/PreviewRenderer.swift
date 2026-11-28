@@ -228,6 +228,35 @@ enum PreviewRenderer {
                                               reviewStates: [.reviewRequired])
                 return model
             },
+            // The list in sections: by repository in "Mine", short enough to show several
+            // sections, over everything open, and by status within a filter.
+            State(name: "list-group-repository") {
+                let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
+                model.listView = .mine
+                model.listGrouping = .repository
+                return model
+            },
+            // Two sections collapsed, one of them not the first.
+            State(name: "list-group-repository-collapsed") {
+                let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
+                model.listView = .mine
+                model.listGrouping = .repository
+                model.collapsedSections = ["repository:acme/docs", "repository:acme/infra"]
+                return model
+            },
+            State(name: "list-group-repository-everything-open") {
+                let model = model(example)
+                model.listView = .everythingOpen
+                model.listGrouping = .repository
+                return model
+            },
+            State(name: "list-group-status-filtered") {
+                let model = model(example)
+                model.listView = .everythingOpen
+                model.listFilter = ListFilter(repositories: [MockCast.api])
+                model.listGrouping = .status
+                return model
+            },
             // A repository name far longer than the mock world's, made up here and marked as
             // mock data, to show it gives way before the number does.
             State(name: "list-long-repository-name") {

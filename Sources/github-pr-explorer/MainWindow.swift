@@ -142,6 +142,7 @@ struct PullRequestList: View {
 
             HStack(spacing: 4) {
                 ListViewPicker(model: model)
+                ListGroupingMenu(model: model)
                 ListFilterMenu(model: model)
             }
             .padding(.leading, 10)
@@ -180,14 +181,16 @@ struct PullRequestList: View {
             } else {
                 ScrollViewReader { proxy in
                 List(selection: rendering ? .constant(nil) : $model.selection) {
-                    ForEach(listed) { pr in
-                        PullRequestRow(pullRequest: pr, status: model.status(for: pr),
-                                       isViewer: model.index.viewer.isViewer(pr.author))
-                            .tag(pr.id)
-                            .id(pr.id)
-                            .listRowBackground(rendering && model.selection == pr.id
-                                ? RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)).padding(.horizontal, 8)
-                                : nil)
+                    if model.listGrouping == .none {
+                        rows(listed)
+                    } else {
+                        ForEach(model.listSections) { section in
+                            Section(isExpanded: expanded(section.id)) {
+                                rows(section.pullRequests)
+                            } header: {
+                                ListSectionHeader(model: model, section: section)
+                            }
+                        }
                     }
                 }
                 .listStyle(.sidebar)
@@ -199,6 +202,27 @@ struct PullRequestList: View {
         }
         .frame(maxHeight: .infinity, alignment: .top)
         .background(Style.surface)
+    }
+
+    /// Whether a section is expanded, for the system's own disclosure control.
+    private func expanded(_ id: String) -> Binding<Bool> {
+        Binding {
+            !model.collapsedSections.contains(id)
+        } set: { isExpanded in
+            if isExpanded { model.collapsedSections.remove(id) } else { model.collapsedSections.insert(id) }
+        }
+    }
+
+    private func rows(_ pullRequests: [PullRequest]) -> some View {
+        ForEach(pullRequests) { pr in
+            PullRequestRow(pullRequest: pr, status: model.status(for: pr),
+                           isViewer: model.index.viewer.isViewer(pr.author))
+                .tag(pr.id)
+                .id(pr.id)
+                .listRowBackground(rendering && model.selection == pr.id
+                    ? RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)).padding(.horizontal, 8)
+                    : nil)
+        }
     }
 
     private var emptyTitle: String {

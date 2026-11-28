@@ -453,6 +453,8 @@ enum PreviewRenderer {
             let emptyIndex = InMemoryPullRequestIndex(pullRequests: [empty] + world.pullRequests, viewer: world.viewer)
             return model(empty.reference, layout: "catalogue", library: catalogueLibrary, index: emptyIndex)
         })
+        // A title row selected: the overview (Figma row 10), in OverviewPreviews.swift.
+        states += overviewStates { model(example) }
         return states
     }
 

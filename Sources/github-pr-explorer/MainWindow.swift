@@ -134,6 +134,8 @@ struct PullRequestList: View {
     @Bindable var model: AppModel
     @Environment(\.isRenderingPreview) private var rendering
     @FocusState private var searchFocused: Bool
+    /// The Set Shorthand popover, when a row's right-click menu asked for it.
+    @State private var shorthandEditor: ShorthandEditorRequest?
 
     var body: some View {
         let listed = model.listedPullRequests
@@ -192,6 +194,7 @@ struct PullRequestList: View {
                 List(selection: rendering ? .constant(nil) : $model.listSelection) {
                     ForEach(model.listTree.rows(closed: model.closedGroups)) { row in
                         rowView(row)
+                            .modifier(ShorthandPopoverAnchor(row: row.id, request: $shorthandEditor, shorthands: model.shorthands))
                             .tag(row.id)
                             .id(row.id)
                             .listRowBackground(rendering && model.listSelection == row.id
@@ -201,8 +204,11 @@ struct PullRequestList: View {
                 }
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
-                // A double-click or Return on a title row opens or closes it. A click selects.
-                .contextMenu(forSelectionType: ListSelection.self, menu: { _ in }) { rows in
+                // A right-click opens the row's menu (ListRowContextMenu). A double-click or
+                // Return on a title row opens or closes it. A click selects.
+                .contextMenu(forSelectionType: ListSelection.self, menu: { rows in
+                    ListRowContextMenu(model: model, rows: rows) { shorthandEditor = $0 }
+                }) { rows in
                     guard rows.count == 1, let id = rows.first?.groupID else { return }
                     withAnimation(.snappy(duration: 0.2)) { model.toggleGroup(id) }
                 }
@@ -319,7 +325,8 @@ struct PullRequestRow: View {
         } else if namedByAncestors.contains(.organization) {
             pullRequest.repository.name
         } else {
-            pullRequest.repository.fullName
+            // With the organization's shorthand, if it has one: "Acme/api".
+            shorthands.name(for: pullRequest.repository).text
         }
         let number = repository == nil ? "#\(pullRequest.number)" : " #\(pullRequest.number)"
         return ViewThatFits(in: .horizontal) {

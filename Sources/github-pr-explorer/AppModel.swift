@@ -177,6 +177,27 @@ final class AppModel {
         listSelection?.groupID.flatMap { listTree.group(id: $0) }
     }
 
+    /// How many pull requests a title row would hold in the chosen tab's own saved filter,
+    /// without the search and without a filter applied on the tab and not saved, so the
+    /// overview can say it is narrowed. Nil when neither is in effect.
+    func unnarrowedCount(ofGroup id: String) -> Int? {
+        guard !searchText.isEmpty || hasUnsavedFilter else { return nil }
+        let all = selectedFilter.filter.pullRequests(in: openPullRequests, context: filterContext)
+        return ListTree(grouping: listGrouping, pullRequests: all, viewer: index.viewer, status: status(for:),
+                        shorthands: shorthands)
+            .group(id: id)?.count
+    }
+
+    /// What narrows the list within the chosen tab, for the overview's "Narrowed by" line:
+    /// the search, a filter applied on the tab and not saved, or both.
+    var narrowedBy: String {
+        switch (searchText.isEmpty, hasUnsavedFilter) {
+        case (false, true): "the search and the applied filter"
+        case (false, false): "the search"
+        default: "the applied filter"
+        }
+    }
+
     /// Opens or closes one title row, or with `level` every row at its level, as Option-click
     /// on a triangle does.
     func toggleGroup(_ id: String, level: Bool = false) {

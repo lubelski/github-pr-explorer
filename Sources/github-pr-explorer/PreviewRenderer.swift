@@ -123,10 +123,11 @@ enum PreviewRenderer {
                     .environment(\.previewMarkdownSelection, state.markdownSelection))
             }
         }
-        let configured = SettingsPreviews.mainWindowStates { snapshot in
+        let makeModel = { (snapshot: ConfigurationSnapshot) in
             AppModel(index: world.index, now: world.now, library: snapshot.library, selection: MockWorld.workedExample, build: .preview)
         }
-        return window + configured + SettingsPreviews.states() + SavedFilterPreviews.states()
+        let configured = SettingsPreviews.mainWindowStates(model: makeModel)
+        return window + configured + SettingsPreviews.states() + SavedFilterPreviews.states() + RowMenuPreviews.states(model: makeModel)
     }
 
     // MARK: States
@@ -452,6 +453,8 @@ enum PreviewRenderer {
             let emptyIndex = InMemoryPullRequestIndex(pullRequests: [empty] + world.pullRequests, viewer: world.viewer)
             return model(empty.reference, layout: "catalogue", library: catalogueLibrary, index: emptyIndex)
         })
+        // A title row selected: the overview (Figma row 10), in OverviewPreviews.swift.
+        states += overviewStates { model(example) }
         return states
     }
 

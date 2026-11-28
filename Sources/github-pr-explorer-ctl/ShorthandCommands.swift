@@ -2,14 +2,15 @@ import Foundation
 import GitHubPRExplorerCore
 
 /// `shorthands`: read and change `shorthands.json`, the short names the app draws in place of
-/// repositories and people. The same file Settings, Shorthands writes. Every change is recorded
+/// repositories, people and organizations. The same file Settings, Shorthands writes. Every change is recorded
 /// in the folder's history as made by "ctl".
 extension ControlCommand {
     static let shorthandsHelp = """
         \(name) shorthands <command> [--config <folder>]
 
-        A shorthand is a short text the app draws in place of a repository's owner/name or a
-        person's name, such as Web for acme/web. It is display only: titles, descriptions,
+        A shorthand is a short text the app draws in place of a repository's owner/name, a
+        person's name or an organization's name, such as Web for acme/web. A repository with
+        no shorthand of its own whose organization has one is drawn as Acme/web. It is display only: titles, descriptions,
         comments, links, copied values and anything sent to GitHub are unchanged. Hovering a
         shortened label shows the full name, and the search finds both.
 
@@ -19,11 +20,13 @@ extension ControlCommand {
           shorthands set <kind> <for> <shorthand>      Set or replace one. Kinds: \(ShorthandKind.allCases.map(\.rawValue).joined(separator: ", ")).
           shorthands remove <kind> <for>               Take one away, so the full name shows again.
 
-        A repository is written owner/name. A person is their login, with or without @.
+        A repository is written owner/name. A person is their login, and an organization its
+        name, with or without @.
 
         Examples:
           \(name) shorthands set repository acme/web Web
           \(name) shorthands set person ada-park Ada
+          \(name) shorthands set organization globex Globex
           \(name) shorthands remove person ada-park
         """
 

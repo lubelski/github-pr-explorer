@@ -169,12 +169,12 @@ final class ConfigurationModel {
         change { try store.set(key: "experiments.\(experiment.key)", value: String(on), author: .settingsWindow) }
     }
 
-    func setShorthand(_ kind: ShorthandKind, for target: String, to shorthand: String) {
-        change { try store.setShorthand(kind, for: target, to: shorthand, author: .settingsWindow) }
+    func setShorthand(_ kind: ShorthandKind, for target: String, to shorthand: String, author: ChangeAuthor = .settingsWindow) {
+        change { try store.setShorthand(kind, for: target, to: shorthand, author: author) }
     }
 
-    func removeShorthand(_ kind: ShorthandKind, for target: String) {
-        change { try store.removeShorthand(kind, for: target, author: .settingsWindow) }
+    func removeShorthand(_ kind: ShorthandKind, for target: String, author: ChangeAuthor = .settingsWindow) {
+        change { try store.removeShorthand(kind, for: target, author: author) }
     }
 
     func duplicate(_ id: String) {

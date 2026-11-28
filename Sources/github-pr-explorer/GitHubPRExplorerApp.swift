@@ -51,6 +51,14 @@ struct GitHubPRExplorerApp: App {
         Window(AppName.display, id: "main") {
             MainWindowView(model: model, updater: updater)
                 .environment(\.hidesBotEventsInActivity, model.hidesBotEventsInActivity)
+                // Set Shorthand on a row of the list writes the same file Settings does.
+                .environment(\.shorthandWriter, ShorthandWriter { [configuration] kind, target, text in
+                    if let text {
+                        configuration.setShorthand(kind, for: target, to: text, author: .mainWindow)
+                    } else {
+                        configuration.removeShorthand(kind, for: target, author: .mainWindow)
+                    }
+                })
                 .frame(minWidth: 900, minHeight: 560)
                 // NSApp does not exist yet when the app is made, so the appearance is applied
                 // again once the window is up.

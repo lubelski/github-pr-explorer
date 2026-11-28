@@ -124,6 +124,7 @@ let blockedInAPIFilter = #"{"sets": [{"conditions": [{"field": "status", "values
         #expect(tools.compactMap { $0["name"] as? String } == [
             "saved_filters_list", "saved_filter_show", "filter_evaluate", "saved_filter_add",
             "saved_filter_change", "saved_filter_move", "saved_filter_remove",
+            "shorthands_list", "shorthand_set", "shorthand_remove",
         ])
         #expect(tools.allSatisfy { ($0["inputSchema"] as? [String: Any])?["type"] as? String == "object" })
         let unknown = try send(server, ["jsonrpc": "2.0", "id": 3, "method": "resources/list"])

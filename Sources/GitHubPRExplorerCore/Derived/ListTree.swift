@@ -44,10 +44,10 @@ public struct ListGroup: Sendable, Identifiable {
     /// gives the ids the sectioned list gave, so rows remembered as closed stay closed.
     public var id: String
     public var property: ListGrouping.Property
-    /// The name on the row, with the full name it stands for. A repository's or an author's
-    /// row takes its shorthand when one is set, and the hover shows the full name. Without a
-    /// shorthand, a repository under its organization is named without it: "api". An
-    /// organization has no shorthand kind, so its row keeps its full name.
+    /// The name on the row, with the full name it stands for. An organization's, a
+    /// repository's or an author's row takes its shorthand when one is set, and the hover shows
+    /// the full name. Without a shorthand, a repository under its organization is named
+    /// without it: "api".
     public var name: DisplayName
     /// What the row draws.
     public var title: String { name.text }
@@ -103,9 +103,9 @@ public struct ListTree: Sendable {
 
     /// `status` is each pull request's status sentence, which the caller usually has already.
     /// Groups follow the filter menu's order for the same values, and rows keep their order
-    /// inside a group. A group with no pull requests is never made. A repository's or an
-    /// author's title row is named by its shorthand when `shorthands` sets one, and is still
-    /// ordered by the full name.
+    /// inside a group. A group with no pull requests is never made. An organization's, a
+    /// repository's or an author's title row is named by its shorthand when `shorthands` sets
+    /// one, and is still ordered by the full name.
     public init(grouping: ListGrouping, pullRequests: [PullRequest], viewer: Viewer,
                 status: (PullRequest) -> StatusSentence, shorthands: Shorthands = .none) {
         self.grouping = grouping
@@ -277,14 +277,15 @@ public struct ListTree: Sendable {
         case .organization:
             return grouped(pullRequests, key: \.repository.owner,
                            order: { $0.sorted { $0.localizedStandardCompare($1) == .orderedAscending } }) {
-                Bucket(key: "organization:\($0)", name: DisplayName($0), rows: $1)
+                Bucket(key: "organization:\($0)", name: shorthands.name(forOrganization: $0), rows: $1)
             }
         case .repository:
             let short = named.contains(.organization)
             return grouped(pullRequests, key: \.repository, order: { $0.sorted() }) {
-                // A shorthand stands alone, without the owner, as it does everywhere else.
+                // A shorthand stands alone, without the owner, as it does everywhere else. Under
+                // its organization's row a repository without one goes by its own name.
                 var name = shorthands.name(for: $0)
-                if short && !name.isShortened { name = DisplayName($0.name) }
+                if short && shorthands.shorthand(.repository, for: $0.fullName) == nil { name = DisplayName($0.name) }
                 return Bucket(key: "repository:\($0.fullName)", name: name, rows: $1)
             }
         case .author:

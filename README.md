@@ -96,7 +96,7 @@ The app creates it on first run. It holds:
 | File | What it holds |
 |---|---|
 | `settings.json` | `formatVersion` (always `1`), `appearance` (`system`, `light`, `dark`), `defaultLayout` (a layout id), `hidesBotEventsInActivity` (`true` or `false`), `updatesAutomatically` (`true` or `false`), and `experiments` (names to `true`; there are none right now, so `{}`). Only `formatVersion` is required: a key left out takes its default. |
-| `shorthands.json` | Short names drawn in place of repositories and people, such as `Web` for `acme/web`: `formatVersion` (`1`) and `shorthands`, a list of `{"kind": "repository" or "person", "for": "owner/name" or a login, "shorthand": "Web"}`. Display only. Missing means none. |
+| `shorthands.json` | Short names drawn in place of repositories, people and organizations, such as `Web` for `acme/web`: `formatVersion` (`1`) and `shorthands`, a list of `{"kind": "repository", "person" or "organization", "for": "owner/name", a login or an organization's name, "shorthand": "Web"}`. Display only. Missing means none. Right-click a row of the pull request list and choose Set Shorthand to set one from there. |
 | `layouts/<id>.json` | One page layout per file, named after its id. The format is the built-in layouts' format. A file with a built-in layout's id (`decision-first`, `tabbed`) replaces it. Copies of the built-in layouts are not written until you ask for one. |
 | `saved-filters.json` | The saved filters, in tab order. Each has an `id`, a `name`, a `filter`, and optionally `groupBy` (one or two groupings) and `showsAsTab`. A filter is `sets` joined by OR, each holding `conditions` joined by AND; a condition is a `field`, an `operator` (`is` or `isNot`) and `values` that are alternatives. "Everything" is built in, always first, and not in the file. A folder with no file uses "Needs my review" and "Mine". |
 | `README.md` | The same explanation, for whoever opens the folder. |
@@ -107,7 +107,7 @@ A file that does not validate is never applied. The app keeps using the last ver
 
 ### History
 
-The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `main window`, `edited on disk` (an agent, an editor, or you), `ctl`, `MCP`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
+The folder is a local git repository with no remote. Every valid change is committed, whoever made it, with a message saying what changed and a `Changed-By:` line saying who: `Settings window`, `main window` (such as Set Shorthand on a row of the list, or saving a filter), `edited on disk` (an agent, an editor, or you), `ctl`, `MCP`, or `app`. A file that does not validate is left out of the commit until it is fixed. Restoring a version adds a new version, so nothing is lost. History runs `/usr/bin/git` with its own identity and with your git configuration switched off, so it never reads or changes your git setup. If git is missing, the files are still saved and Settings, History says why versions are not being kept.
 
 ### From the command line
 
@@ -125,6 +125,7 @@ github-pr-explorer-ctl config restore 1a2b3c4 settings.json   # one file
 github-pr-explorer-ctl shorthands list                  # every shorthand, and any two that share one
 github-pr-explorer-ctl shorthands set repository acme/web Web
 github-pr-explorer-ctl shorthands set person ada-park Ada
+github-pr-explorer-ctl shorthands set organization globex Gx
 github-pr-explorer-ctl shorthands remove person ada-park
 github-pr-explorer-ctl layouts list
 github-pr-explorer-ctl layouts show tabbed --json
@@ -139,7 +140,7 @@ github-pr-explorer-ctl filters remove blocked
 
 ### Over MCP
 
-`github-pr-explorer-ctl mcp` is an MCP server over standard input and output. Its tools do what `filters` does: `saved_filters_list`, `saved_filter_show`, `filter_evaluate`, `saved_filter_add`, `saved_filter_change`, `saved_filter_move` and `saved_filter_remove`. Settings and layouts are not tools yet.
+`github-pr-explorer-ctl mcp` is an MCP server over standard input and output. Its tools do what `filters` and `shorthands` do: `saved_filters_list`, `saved_filter_show`, `filter_evaluate`, `saved_filter_add`, `saved_filter_change`, `saved_filter_move`, `saved_filter_remove`, `shorthands_list`, `shorthand_set` and `shorthand_remove`. Settings and layouts are not tools yet.
 
 ```json
 {"mcpServers": {"github-pr-explorer": {"command": "github-pr-explorer-ctl", "args": ["mcp"]}}}

@@ -436,7 +436,7 @@ public final class ConfigurationStore {
 
     // MARK: Shorthands
 
-    /// Sets the shorthand for one repository or person, replacing the one it had, and writes
+    /// Sets the shorthand for one repository, person or organization, replacing the one it had, and writes
     /// `shorthands.json`. A shorthand another thing already has is allowed: Settings and
     /// `shorthands list` warn about it. Returns what changed, in a sentence.
     ///
@@ -469,7 +469,7 @@ public final class ConfigurationStore {
         return summary
     }
 
-    /// Takes away the shorthand for one repository or person, so its full name shows again.
+    /// Takes away the shorthand for one repository, person or organization, so its full name shows again.
     @discardableResult
     public func removeShorthand(_ kind: ShorthandKind, for target: String, author: ChangeAuthor) throws(ConfigurationError) -> String {
         let identity = kind.normalizedIdentity(target)

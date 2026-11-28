@@ -35,8 +35,8 @@ enum ControlCommand {
           config                 The configuration folder: path, validate, show, set, history,
                                  diff, restore.
           layouts                Page layouts: list, show, duplicate.
-          shorthands             Short names drawn for repositories and people: list, set,
-                                 remove.
+          shorthands             Short names drawn for repositories, people and
+                                 organizations: list, set, remove.
           filters                Saved filters: list, show, evaluate, add, change, move,
                                  remove.
           mcp                    Run as an MCP server over standard input and output, with

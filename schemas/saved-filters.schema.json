@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/lubelski/github-pr-explorer/schemas/saved-filters.schema.json",
+  "title": "github-pr-explorer saved filters",
+  "description": "saved-filters.json in the configuration folder (~/Library/Application Support/github-pr-explorer/config): the saved filters, in the order of their tabs. Everything, which matches every open pull request, is built in, always first, and not in this file. A folder with no file uses the defaults, Needs my review and Mine. A file that does not validate is not applied, and the app keeps using the last version that worked. The filter object is the one filter language: a layout rule or a search that needs a filter writes the same shape.",
+  "type": "object",
+  "required": ["formatVersion", "savedFilters"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "description": "Optional. A link to this schema, for editors. The app ignores it.",
+      "type": "string"
+    },
+    "formatVersion": {
+      "description": "The version of this file's format. This app reads version 1 only.",
+      "type": "integer",
+      "enum": [1]
+    },
+    "savedFilters": {
+      "description": "The saved filters, first after Everything to last. Ids must be different from each other.",
+      "type": "array",
+      "items": { "$ref": "#/$defs/savedFilter" }
+    }
+  },
+  "$defs": {
+    "savedFilter": {
+      "type": "object",
+      "required": ["id", "name", "filter"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "description": "Stays the same when the name changes, so the command line and MCP can name the filter: lowercase letters, digits and hyphens, starting with a letter or digit, such as blocked-in-api. \"everything\" is taken by the built-in filter.",
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "maxLength": 100
+        },
+        "name": {
+          "description": "The name on the tab, such as Needs my review.",
+          "type": "string",
+          "minLength": 1
+        },
+        "filter": {
+          "description": "Which open pull requests the saved filter shows.",
+          "$ref": "#/$defs/filter"
+        },
+        "groupBy": {
+          "description": "How the list is grouped while this filter is chosen: one or two groupings, outer first, such as [\"organization\", \"repository\"]. Left out or empty: no grouping. A grouping the app does not know is treated as no grouping.",
+          "type": "array",
+          "maxItems": 2,
+          "items": { "type": "string", "pattern": "^[a-z][A-Za-z]*$" },
+          "default": []
+        },
+        "showsAsTab": {
+          "description": "True to show the filter as a tab above the list. False keeps it in the » menu and in Settings. Default: true.",
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "filter": {
+      "description": "Sets of conditions. A pull request matches when any set matches. No sets match every pull request.",
+      "type": "object",
+      "required": ["sets"],
+      "additionalProperties": false,
+      "properties": {
+        "sets": {
+          "description": "Alternatives, joined by OR. Sets do not nest.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/set" }
+        }
+      }
+    },
+    "set": {
+      "type": "object",
+      "required": ["conditions"],
+      "additionalProperties": false,
+      "properties": {
+        "conditions": {
+          "description": "Conditions that must all match, joined by AND. A set with no conditions matches every pull request.",
+          "type": "array",
+          "items": { "$ref": "#/$defs/condition" }
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "required": ["field", "values"],
+      "additionalProperties": false,
+      "properties": {
+        "field": {
+          "description": "What the condition tests.",
+          "type": "string",
+          "enum": ["status", "organization", "repository", "author", "reviewState", "draft"]
+        },
+        "operator": {
+          "description": "is: the pull request has one of the values. isNot: it has none of them. Default: is.",
+          "type": "string",
+          "enum": ["is", "isNot"],
+          "default": "is"
+        },
+        "values": {
+          "description": "Alternatives. status: draft, merging, blocked, changesRequested, running, failing, threads, waiting, behind, checking, ready, merged, closed. organization: a name such as acme. repository: owner/name such as acme/api. author: a login such as ada-park, or @me for the signed-in person. reviewState: approved, changesRequested, reviewRequired, noDecision, or waitingOnMe for a review asked of the signed-in person or one of their teams. draft: true or false. Organization, repository and author ignore case.",
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}

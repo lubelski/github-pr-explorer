@@ -2,7 +2,7 @@
 
 The current plan for github-pr-explorer. It changes as we learn. [VISION.md](VISION.md) holds what does not change, and [planning/decided.md](planning/decided.md) holds what is settled.
 
-Last updated 2026-11-25, after the owner's first look at real pull requests (MAC-69).
+Last updated 2026-11-27, when the grouped list became a tree (MAC-111).
 
 ## Where we are
 
@@ -23,6 +23,8 @@ Real pull requests can be read (MAC-59), behind a setting that is off by default
 The owner's first run on real pull requests brought four changes to the main window (MAC-69). The sidebar button sits in the title bar just after the window buttons. A filter menu at the end of the views row narrows the list by status, repository, author, review state and drafts, as plain predicates until the filter language exists. Each list row has three lines, the title, the repository and number with the author, and the status's detail, beside a short colored badge for the state. The layout menu became a cog menu with Layout, Sync Now, Settings and Check for Updates.
 
 The list can be grouped (MAC-100). A group by button beside the filter button draws the list in sections by repository, author, status or review state, each headed by its name in bold and its count, so pull requests from several repositories can be read one repository at a time without filtering down to one. A section collapses and expands in place with the system's own disclosure control or a click on its header, and Option-click does every section. Grouping arranges the rows and keeps none out, so it is not a filter and has no syntax. The choice and which sections are collapsed are remembered as window state, like the view.
+
+After using it, the owner asked for a tree (MAC-111, Figma row 9). Grouping now takes up to two levels, such as organization and then repository, with Organization new, and the list draws like a file tree: a disclosure triangle at each title row's leading edge, children indented, and a faint guide line down past what a row holds. Group By is a nested menu whose second level depends on the first. A click on a title row selects it, and the triangle, the arrow keys and a double-click open and close it. A selected title row shows a placeholder on the right until a real overview is designed. A title row counts every pull request inside it, and a row inside a repository does not repeat the repository's name. The mock world gained a second organization, `globex`, for it.
 
 ## What the research says
 
@@ -166,3 +168,4 @@ File: https://www.figma.com/design/XslUM40a0h5IXEs7tXtAqZ
 | 6 | Freshness, pending actions, and offline | Not reviewed |
 | 7 | Block catalogue | Not reviewed |
 | 8 | The diff as a pane that slides in over the pull request, after the pane stack in `mac-os-agent`'s Settings. A second answer to row 2. | Not reviewed. Built for trial in the app (MAC-53). |
+| 9 | The list as a tree: two levels of grouping, a leading triangle and a guide line, selectable title rows, and a nested Group By menu | Asked for by the owner. Built (MAC-111), with each "Needs decision" card's proposal except where the pull request says otherwise. |

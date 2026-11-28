@@ -84,7 +84,7 @@ struct SavedFiltersSettingsView: View {
                     .disabled(selected == nil)
                 Spacer()
             }
-            FileFootnote(text: "To change what a filter shows, right-click its tab above the list and choose Edit Filter\u{2026}. Saved in saved-filters.json in the configuration folder. `github-pr-explorer-ctl filters` and MCP change it too.")
+            FileFootnote(text: "Saved in saved-filters.json in the configuration folder, which `github-pr-explorer-ctl filters` and MCP change too. To change what a filter shows, right-click its tab above the list and choose Edit Filter\u{2026}")
         }
         .padding(20)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)

@@ -126,7 +126,7 @@ enum PreviewRenderer {
         let configured = SettingsPreviews.mainWindowStates { snapshot in
             AppModel(index: world.index, now: world.now, library: snapshot.library, selection: MockWorld.workedExample, build: .preview)
         }
-        return window + configured + SettingsPreviews.states()
+        return window + configured + SettingsPreviews.states() + SavedFilterPreviews.states()
     }
 
     // MARK: States

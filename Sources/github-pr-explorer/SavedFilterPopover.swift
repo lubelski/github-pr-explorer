@@ -57,6 +57,7 @@ struct SavedFilterPopover: View {
                 HStack(spacing: 8) {
                     Text("Group by")
                         .foregroundStyle(.secondary)
+                        .fixedSize()
                     GroupingPicker(grouping: $grouping)
                 }
                 Spacer(minLength: 8)
@@ -99,6 +100,7 @@ struct SavedFilterPopover: View {
             .padding(.vertical, 12)
         }
         .frame(width: FilterPopoverMetrics.width)
+        .fixedSize(horizontal: false, vertical: true)
         .disabled(!model.canChangeSavedFilters)
     }
 

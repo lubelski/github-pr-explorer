@@ -15,8 +15,8 @@ enum FilterPopoverMetrics {
     static let width: CGFloat = 520
     /// The scrolling middle grows with the filter up to this height, then scrolls.
     static let maximumMiddleHeight: CGFloat = 380
-    static let fieldWidth: CGFloat = 128
-    static let operatorWidth: CGFloat = 76
+    static let fieldWidth: CGFloat = 120
+    static let operatorWidth: CGFloat = 72
 }
 
 /// The fixed top of a popover: a title (or the name field), something at its trailing end, and
@@ -558,31 +558,40 @@ struct FilterMatchSummary: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
             } else {
-                HStack(spacing: 8) {
-                    ForEach(evaluation.byStatus.prefix(5), id: \.status) { part in
-                        HStack(spacing: 4) {
-                            Circle().fill(part.status.tone.color).frame(width: 6, height: 6)
-                                .alignmentGuide(.firstTextBaseline) { $0[.bottom] - 1 }
-                            Text(part.text)
-                                .monospacedDigit()
-                                .contentTransition(.numericText())
-                        }
-                        .fixedSize()
+                // As many statuses as fit, the rest counted.
+                ViewThatFits(in: .horizontal) {
+                    ForEach((1...min(5, evaluation.byStatus.count)).reversed(), id: \.self) { shown in
+                        breakdown(shown)
                     }
-                    if evaluation.byStatus.count > 5 {
-                        Text("+\(evaluation.byStatus.count - 5) more")
-                            .foregroundStyle(.tertiary)
-                            .fixedSize()
-                    }
+                    Text("").frame(width: 0)
                 }
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
-                .lineLimit(1)
                 .help(evaluation.breakdownText)
             }
         }
         .animation(.snappy(duration: 0.25), value: evaluation.count)
         .accessibilityElement(children: .combine)
+    }
+
+    private func breakdown(_ shown: Int) -> some View {
+        HStack(spacing: 8) {
+            ForEach(evaluation.byStatus.prefix(shown), id: \.status) { part in
+                HStack(spacing: 4) {
+                    Circle().fill(part.status.tone.color).frame(width: 6, height: 6)
+                    Text(part.text)
+                        .monospacedDigit()
+                        .contentTransition(.numericText())
+                }
+                .fixedSize()
+            }
+            if evaluation.byStatus.count > shown {
+                Text("+\(evaluation.byStatus.count - shown) more")
+                    .foregroundStyle(.tertiary)
+                    .fixedSize()
+            }
+        }
+        .lineLimit(1)
     }
 }
 

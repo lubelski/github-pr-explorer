@@ -96,6 +96,7 @@ struct FilterPopover: View {
             .padding(.vertical, 12)
         }
         .frame(width: FilterPopoverMetrics.width)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -196,8 +197,6 @@ struct SaveFilterForm: View {
 struct AppliedFilterLine: View {
     @Bindable var model: AppModel
     @State private var saving = false
-    /// A render passes true to show the Save popover's content in place.
-    var showsSaveForm = false
 
     var body: some View {
         let filter = model.appliedFilter ?? .everything

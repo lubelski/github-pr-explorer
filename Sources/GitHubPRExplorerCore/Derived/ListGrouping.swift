@@ -1,141 +1,103 @@
 import Foundation
 
-/// How the pull request list is drawn: as one run of rows, or in sections by repository,
-/// author, status or review state.
+/// How the pull request list is arranged: as one run of rows, or as a tree with up to two
+/// levels, such as by organization and then by repository.
 ///
 /// Grouping only arranges the rows the list already holds. It keeps no pull request out and
-/// adds none, so it is not a filter and has no syntax. Sections are ordered the way the filter
-/// menu orders the same values (`ListFilterChoices`), and rows keep their order inside a
-/// section.
-public enum ListGrouping: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
-    /// One run of rows, with no sections.
-    case none
-    case repository
-    case author
-    case status
-    case reviewState
+/// adds none, so it is not a filter and has no syntax. `ListTree` builds the tree.
+public struct ListGrouping: Sendable, Hashable, Codable, CustomStringConvertible {
+    /// One thing the list can be grouped by.
+    public enum Property: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {
+        case organization
+        case repository
+        case author
+        case status
+        case reviewState
 
-    public var id: String { rawValue }
+        public var id: String { rawValue }
+
+        public var name: String {
+            switch self {
+            case .organization: "Organization"
+            case .repository: "Repository"
+            case .author: "Author"
+            case .status: "Status"
+            case .reviewState: "Review State"
+            }
+        }
+
+        /// What can be the second level under this one. Never itself, and never something
+        /// this level already decides: a repository has only one organization.
+        public var secondLevelChoices: [Property] {
+            Property.allCases.filter { allowsSecondLevel($0) }
+        }
+
+        public func allowsSecondLevel(_ second: Property) -> Bool {
+            second != self && !(self == .repository && second == .organization)
+        }
+    }
+
+    /// The most levels the tree has.
+    public static let maximumLevels = 2
+
+    /// The levels from the outermost in. Empty is the flat list.
+    public let levels: [Property]
+
+    /// Keeps the levels that make sense together: no repeats, nothing the level above
+    /// already decides, and at most `maximumLevels`.
+    public init(_ levels: [Property]) {
+        var kept: [Property] = []
+        for level in levels where kept.count < Self.maximumLevels {
+            if let first = kept.first, !first.allowsSecondLevel(level) { continue }
+            kept.append(level)
+        }
+        self.levels = kept
+    }
+
+    public init(_ first: Property, then second: Property? = nil) {
+        self.init([first] + (second.map { [$0] } ?? []))
+    }
+
+    /// The flat list, with no title rows.
+    public static let none = ListGrouping([])
 
     /// The grouping the list starts with when nothing was chosen before.
     public static let standard: ListGrouping = .none
 
+    public var isNone: Bool { levels.isEmpty }
+    public var first: Property? { levels.first }
+    public var second: Property? { levels.count > 1 ? levels[1] : nil }
+
+    /// "None", "Organization", or "Organization, then Repository".
     public var name: String {
-        switch self {
-        case .none: "None"
-        case .repository: "Repository"
-        case .author: "Author"
-        case .status: "Status"
-        case .reviewState: "Review state"
-        }
+        guard let first else { return "None" }
+        guard let second else { return first.name }
+        return "\(first.name), then \(second.name)"
     }
 
-    /// One section of the list: a group's name and its rows.
-    public struct Section: Sendable, Hashable, Identifiable {
-        /// Unique within one grouping, such as `repository:acme/api`.
-        public var id: String
-        public var title: String
-        public var pullRequests: [PullRequest]
+    public var description: String { storedValue }
 
-        public init(id: String, title: String, pullRequests: [PullRequest]) {
-            self.id = id
-            self.title = title
-            self.pullRequests = pullRequests
-        }
+    // MARK: Remembering
 
-        public var count: Int { pullRequests.count }
+    /// How the choice is remembered: `none`, `repository`, or `organization>repository`.
+    /// A single level is written the way the one-level grouping wrote it, so a value saved
+    /// before there were two levels reads back as the same choice.
+    public var storedValue: String {
+        isNone ? "none" : levels.map(\.rawValue).joined(separator: ">")
     }
 
-    /// The pull requests in sections, in the order given inside each. With `none` it is one
-    /// section with an empty title holding every pull request, or nothing when there are none.
-    /// A group with no pull requests is never a section. `status` is each pull request's
-    /// status sentence, which the caller usually has already.
-    public func sections(of pullRequests: [PullRequest], viewer: Viewer,
-                         status: (PullRequest) -> StatusSentence) -> [Section] {
-        guard !pullRequests.isEmpty else { return [] }
-        switch self {
-        case .none:
-            return [Section(id: "all", title: "", pullRequests: pullRequests)]
-        case .repository:
-            return grouped(pullRequests, key: \.repository, order: { $0.sorted() }) {
-                Section(id: "repository:\($0.fullName)", title: $0.fullName, pullRequests: $1)
-            }
-        case .author:
-            var people: [String: Person] = [:]
-            for pr in pullRequests where people[pr.author.login] == nil { people[pr.author.login] = pr.author }
-            return grouped(pullRequests, key: \.author.login,
-                           order: { logins in logins.compactMap { people[$0] }.sorted(by: viewer.listsBefore).map(\.login) }) { login, rows in
-                let person = people[login] ?? Person(login: login, displayName: login)
-                let title = viewer.isViewer(person) ? "\(person.displayName) (you)" : person.displayName
-                return Section(id: "author:\(login)", title: title, pullRequests: rows)
-            }
-        case .status:
-            return grouped(pullRequests, key: { status($0).badge },
-                           order: { badges in StatusSentence.Badge.allCases.filter(badges.contains) }) {
-                Section(id: "status:\($0.rawValue)", title: $0.name, pullRequests: $1)
-            }
-        case .reviewState:
-            return grouped(pullRequests, key: { ListFilter.ReviewState($0.reviewDecision) },
-                           order: { states in ListFilter.ReviewState.allCases.filter(states.contains) }) {
-                Section(id: "review:\($0.rawValue)", title: $0.name, pullRequests: $1)
-            }
-        }
+    /// Reads a remembered choice. Unknown words are dropped, so a value from a newer or
+    /// older version still gives something sensible, and an empty result is the flat list.
+    public init(storedValue: String) {
+        self.init(storedValue.split(separator: ">").compactMap { Property(rawValue: String($0)) })
     }
 
-    /// The pull requests in the order the list draws them, section after section.
-    public func ordered(_ pullRequests: [PullRequest], viewer: Viewer,
-                        status: (PullRequest) -> StatusSentence) -> [PullRequest] {
-        guard self != .none else { return pullRequests }
-        return sections(of: pullRequests, viewer: viewer, status: status).flatMap(\.pullRequests)
+    public init(from decoder: any Decoder) throws {
+        self.init(storedValue: try decoder.singleValueContainer().decode(String.self))
     }
 
-    // MARK: Collapsed sections
-
-    /// The rows the list shows when the sections whose ids are in `collapsed` are folded
-    /// away, in the order on screen. With `none` nothing folds: the flat list has no sections.
-    public func visible(_ sections: [Section], collapsed: Set<String>) -> [PullRequest] {
-        guard self != .none else { return sections.flatMap(\.pullRequests) }
-        return sections.filter { !collapsed.contains($0.id) }.flatMap(\.pullRequests)
-    }
-
-    /// Collapses the section when it is expanded and expands it when it is collapsed.
-    public static func toggle(_ id: String, in collapsed: inout Set<String>) {
-        if collapsed.contains(id) { collapsed.remove(id) } else { collapsed.insert(id) }
-    }
-
-    /// Option-click on a header, as in Finder: when the clicked section was expanded every
-    /// section collapses, otherwise every section expands. Ids of sections not shown now are
-    /// left as they are.
-    public static func toggleAll(from id: String, sections: [Section], in collapsed: inout Set<String>) {
-        setAll(collapsed: !collapsed.contains(id), sections: sections, in: &collapsed)
-    }
-
-    /// Collapses or expands every section shown.
-    public static func setAll(collapsed collapse: Bool, sections: [Section], in collapsed: inout Set<String>) {
-        let ids = Set(sections.map(\.id))
-        if collapse { collapsed.formUnion(ids) } else { collapsed.subtract(ids) }
-    }
-
-    /// Whether Collapse All would change anything: some section shown is expanded.
-    public func canCollapseAll(_ sections: [Section], collapsed: Set<String>) -> Bool {
-        self != .none && sections.contains { !collapsed.contains($0.id) }
-    }
-
-    /// Whether Expand All would change anything: some section shown is collapsed.
-    public func canExpandAll(_ sections: [Section], collapsed: Set<String>) -> Bool {
-        self != .none && sections.contains { collapsed.contains($0.id) }
-    }
-
-    /// The id of the section that holds the pull request, or nil when no section does.
-    public static func sectionID(containing id: PullRequest.ID, in sections: [Section]) -> String? {
-        sections.first { section in section.pullRequests.contains { $0.id == id } }?.id
-    }
-
-    private func grouped<Key: Hashable>(_ pullRequests: [PullRequest], key: (PullRequest) -> Key,
-                                        order: (Set<Key>) -> [Key],
-                                        section: (Key, [PullRequest]) -> Section) -> [Section] {
-        var rows: [Key: [PullRequest]] = [:]
-        for pr in pullRequests { rows[key(pr), default: []].append(pr) }
-        return order(Set(rows.keys)).compactMap { key in rows[key].map { section(key, $0) } }
+    public func encode(to encoder: any Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(storedValue)
     }
 }

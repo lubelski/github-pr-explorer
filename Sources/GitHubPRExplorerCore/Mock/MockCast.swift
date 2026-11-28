@@ -61,7 +61,18 @@ public enum MockCast {
     public static let web = Repository(owner: "acme", name: "web")
     public static let infra = Repository(owner: "acme", name: "infra")
     public static let docs = Repository(owner: "acme", name: "docs")
+    /// The first organization's repositories, where most of the world's pull requests are.
     public static let repositories = [api, web, infra, docs]
+
+    /// A second placeholder organization, so the list can be grouped by organization. It has
+    /// a `docs` repository too, so two repositories share a short name (MAC-111).
+    public static let secondOrganization = "globex"
+    public static let globexBilling = Repository(owner: "globex", name: "billing")
+    public static let globexDocs = Repository(owner: "globex", name: "docs")
+    public static let secondOrganizationRepositories = [globexBilling, globexDocs]
+
+    /// Every repository in the world, in both organizations.
+    public static let allRepositories = repositories + secondOrganizationRepositories
 
     /// Each repository's CODEOWNERS file.
     public static func codeOwnerRules(for repository: Repository) -> [CodeOwnerRule] {

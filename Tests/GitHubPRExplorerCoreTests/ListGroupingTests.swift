@@ -8,177 +8,281 @@ import Testing
 
     func status(_ pr: PullRequest) -> StatusSentence { pr.statusSentence(for: world.viewer, now: world.now) }
 
-    func sections(_ grouping: ListGrouping, _ pullRequests: [PullRequest]? = nil) -> [ListGrouping.Section] {
-        grouping.sections(of: pullRequests ?? open, viewer: world.viewer, status: status)
+    func tree(_ grouping: ListGrouping, _ pullRequests: [PullRequest]? = nil) -> ListTree {
+        ListTree(grouping: grouping, pullRequests: pullRequests ?? open, viewer: world.viewer, status: status)
     }
 
-    @Test func noneIsTheFlatList() {
-        let all = sections(.none)
-        #expect(all.count == 1)
-        #expect(all.first?.title == "")
-        #expect(all.first?.pullRequests.map(\.id) == open.map(\.id))
-        #expect(ListGrouping.none.ordered(open, viewer: world.viewer, status: status).map(\.id) == open.map(\.id))
+    /// Every grouping the menu offers: None, each property alone, and each with each second level.
+    var everyGrouping: [ListGrouping] {
+        [.none] + ListGrouping.Property.allCases.flatMap { first in
+            [ListGrouping(first)] + first.secondLevelChoices.map { ListGrouping(first, then: $0) }
+        }
+    }
+
+    let orgThenRepository = ListGrouping(.organization, then: .repository)
+
+    // MARK: The choice
+
+    @Test func levelsThatDoNotFitTogetherAreDropped() {
+        #expect(ListGrouping([.repository, .organization]).levels == [.repository])
+        #expect(ListGrouping([.author, .author]).levels == [.author])
+        #expect(ListGrouping([.organization, .repository, .author]).levels == [.organization, .repository])
+        #expect(ListGrouping([]).isNone)
         #expect(ListGrouping.standard == .none)
     }
 
-    @Test func nothingToGroupHasNoSections() {
-        for grouping in ListGrouping.allCases {
-            #expect(sections(grouping, []).isEmpty)
+    @Test func secondLevelChoicesFollowTheFirst() {
+        #expect(ListGrouping.Property.repository.secondLevelChoices == [.author, .status, .reviewState])
+        #expect(ListGrouping.Property.organization.secondLevelChoices == [.repository, .author, .status, .reviewState])
+        for first in ListGrouping.Property.allCases {
+            #expect(!first.secondLevelChoices.contains(first))
+        }
+    }
+
+    @Test func namesAndStoredValuesAreFixed() {
+        #expect(ListGrouping.Property.allCases.map(\.name) == ["Organization", "Repository", "Author", "Status", "Review State"])
+        #expect(ListGrouping.Property.allCases.map(\.rawValue) == ["organization", "repository", "author", "status", "reviewState"])
+        #expect(ListGrouping.none.name == "None")
+        #expect(orgThenRepository.name == "Organization, then Repository")
+        #expect(orgThenRepository.storedValue == "organization>repository")
+        #expect(ListGrouping.none.storedValue == "none")
+    }
+
+    /// The one-level grouping remembered `none`, `repository`, `author`, `status` or
+    /// `reviewState`. Each reads back as the same choice.
+    @Test func valuesRememberedByTheOneLevelGroupingStillRead() {
+        #expect(ListGrouping(storedValue: "none") == .none)
+        #expect(ListGrouping(storedValue: "repository") == ListGrouping(.repository))
+        #expect(ListGrouping(storedValue: "reviewState") == ListGrouping(.reviewState))
+        #expect(ListGrouping(storedValue: "nonsense") == .none)
+        #expect(ListGrouping(storedValue: "author>nonsense") == ListGrouping(.author))
+        for grouping in everyGrouping {
+            #expect(ListGrouping(storedValue: grouping.storedValue) == grouping)
+        }
+    }
+
+    @Test func groupingCodesAsItsStoredValue() throws {
+        let data = try JSONEncoder().encode([orgThenRepository])
+        #expect(String(decoding: data, as: UTF8.self) == #"["organization>repository"]"#)
+        #expect(try JSONDecoder().decode([ListGrouping].self, from: data) == [orgThenRepository])
+    }
+
+    @Test func selectionsAreRememberedAsText() {
+        let selections: [ListSelection] = [.pullRequest("PR_1"), .group("organization:acme|repository:acme/api")]
+        for selection in selections {
+            #expect(ListSelection(storedValue: selection.storedValue) == selection)
+        }
+        #expect(ListSelection(storedValue: "something else") == nil)
+    }
+
+    // MARK: The tree
+
+    @Test func noneIsTheFlatList() {
+        let flat = tree(.none)
+        #expect(flat.groups.isEmpty)
+        #expect(flat.ordered.map(\.id) == open.map(\.id))
+        let rows = flat.rows(closed: ["anything"])
+        #expect(rows.map(\.id) == open.map { .pullRequest($0.id) })
+        #expect(rows.allSatisfy { $0.depth == 0 && $0.namedByAncestors.isEmpty })
+        #expect(!flat.canCloseAll(closed: []))
+        #expect(!flat.canOpenAll(closed: ["anything"]))
+    }
+
+    @Test func nothingToGroupHasNoTitleRows() {
+        for grouping in everyGrouping {
+            #expect(tree(grouping, []).groups.isEmpty)
+            #expect(tree(grouping, []).rows(closed: []).isEmpty)
         }
     }
 
     @Test func everyGroupingKeepsEveryRowOnce() {
-        for grouping in ListGrouping.allCases {
-            let groups = sections(grouping)
-            let ids = groups.flatMap(\.pullRequests).map(\.id)
-            #expect(ids.count == open.count)
-            #expect(Set(ids) == Set(open.map(\.id)))
-            #expect(groups.allSatisfy { $0.count > 0 })
-            #expect(Set(groups.map(\.id)).count == groups.count)
-            #expect(grouping.ordered(open, viewer: world.viewer, status: status).map(\.id) == ids)
+        for grouping in everyGrouping {
+            let built = tree(grouping)
+            let ids = built.ordered.map(\.id)
+            #expect(ids.count == open.count, "\(grouping)")
+            #expect(Set(ids) == Set(open.map(\.id)), "\(grouping)")
+            let all = built.allGroups
+            #expect(Set(all.map(\.id)).count == all.count, "\(grouping)")
+            #expect(all.allSatisfy { $0.count > 0 }, "\(grouping)")
+            #expect(built.visiblePullRequests(closed: []).map(\.id) == ids, "\(grouping)")
         }
     }
 
-    @Test func rowsKeepTheirOrderInsideASection() {
+    /// A title row counts every pull request inside it, at any depth.
+    @Test func aTitleRowCountsEverythingInsideIt() {
+        for grouping in everyGrouping where grouping.second != nil {
+            for group in tree(grouping).groups {
+                #expect(!group.children.isEmpty)
+                #expect(group.count == group.children.reduce(0) { $0 + $1.count }, "\(group.id)")
+                #expect(group.pullRequests.map(\.id) == group.children.flatMap(\.pullRequests).map(\.id))
+            }
+        }
+    }
+
+    @Test func rowsKeepTheirOrderInsideAGroup() {
         let position = Dictionary(uniqueKeysWithValues: open.enumerated().map { ($1.id, $0) })
-        for grouping in ListGrouping.allCases {
-            for section in sections(grouping) {
-                let positions = section.pullRequests.compactMap { position[$0.id] }
+        for grouping in everyGrouping {
+            for group in tree(grouping).allGroups where group.children.isEmpty {
+                let positions = group.pullRequests.compactMap { position[$0.id] }
                 #expect(positions == positions.sorted())
             }
         }
     }
 
-    @Test func repositoriesAreSortedByFullName() {
-        let groups = sections(.repository)
-        #expect(groups.count > 1)
-        #expect(groups.map(\.title) == groups.map(\.title).sorted())
-        for section in groups {
-            #expect(section.pullRequests.allSatisfy { $0.repository.fullName == section.title })
+    /// The mock world has a second organization, and both have a `docs` repository.
+    @Test func organizationThenRepository() {
+        let built = tree(orgThenRepository)
+        #expect(built.groups.map(\.title) == ["acme", "globex"])
+        let acme = built.groups[0], globex = built.groups[1]
+        #expect(acme.id == "organization:acme")
+        #expect(acme.children.map(\.title) == ["api", "docs", "infra", "web"])
+        #expect(globex.children.map(\.title) == ["billing", "docs"])
+        #expect(acme.children.map(\.id).contains("organization:acme|repository:acme/docs"))
+        #expect(globex.children.map(\.id).contains("organization:globex|repository:globex/docs"))
+        #expect(acme.count == open.count { $0.repository.owner == "acme" })
+        #expect(globex.count == open.count { $0.repository.owner == "globex" })
+        #expect(globex.count > 0)
+        for child in acme.children {
+            #expect(child.depth == 1 && child.parentID == acme.id && child.property == .repository)
+            #expect(child.pullRequests.allSatisfy { $0.repository.name == child.title && $0.repository.owner == "acme" })
         }
-        let api = groups.first { $0.id == "repository:\(MockCast.api.fullName)" }
-        #expect(api?.count == open.count { $0.repository == MockCast.api })
     }
 
-    @Test func sectionsFollowTheFilterMenusOrder() {
+    /// On its own, or first, a repository is named in full and keeps the id the one-level
+    /// grouping gave it, so rows remembered as closed stay closed.
+    @Test func aRepositoryOutsideItsOrganizationIsNamedInFull() {
+        let built = tree(ListGrouping(.repository))
+        #expect(built.groups.count > 1)
+        #expect(built.groups.map(\.title) == built.groups.map(\.title).sorted())
+        #expect(built.groups.contains { $0.id == "repository:\(MockCast.api.fullName)" && $0.title == "acme/api" })
+        let byAuthor = tree(ListGrouping(.author, then: .repository))
+        #expect(byAuthor.groups.flatMap(\.children).allSatisfy { $0.title.contains("/") })
+    }
+
+    @Test func groupsFollowTheFilterMenusOrder() {
         let choices = ListFilterChoices(pullRequests: open, viewer: world.viewer, status: status)
-        #expect(sections(.repository).map(\.title) == choices.repositories.map(\.fullName))
-        #expect(sections(.author).map(\.id) == choices.authors.map { "author:\($0.login)" })
-        #expect(sections(.status).map(\.title) == choices.statuses.map(\.name))
-        #expect(sections(.reviewState).map(\.title) == choices.reviewStates.map(\.name))
+        #expect(tree(ListGrouping(.repository)).groups.map(\.title) == choices.repositories.map(\.fullName))
+        #expect(tree(ListGrouping(.author)).groups.map(\.id) == choices.authors.map { "author:\($0.login)" })
+        #expect(tree(ListGrouping(.status)).groups.map(\.title) == choices.statuses.map(\.name))
+        #expect(tree(ListGrouping(.reviewState)).groups.map(\.title) == choices.reviewStates.map(\.name))
     }
 
     @Test func theViewerIsTheFirstAuthor() {
-        let groups = sections(.author)
+        let groups = tree(ListGrouping(.author)).groups
         let viewer = world.viewer.person
-        #expect(open.contains { $0.author.login == viewer.login })
         #expect(groups.first?.id == "author:\(viewer.login)")
         #expect(groups.first?.title == "\(viewer.displayName) (you)")
-        let others = groups.dropFirst().compactMap { $0.pullRequests.first?.author.displayName }
-        #expect(others == others.sorted { $0.localizedStandardCompare($1) == .orderedAscending })
         #expect(groups.dropFirst().allSatisfy { !$0.title.hasSuffix("(you)") })
     }
 
     @Test func statusesFollowTheBadgeOrder() {
-        let groups = sections(.status)
+        let groups = tree(ListGrouping(.status)).groups
         #expect(groups.count > 1)
         let badges = groups.compactMap { $0.pullRequests.first.map { status($0).badge } }
         #expect(badges == StatusSentence.Badge.allCases.filter(Set(badges).contains))
-        for (section, badge) in zip(groups, badges) {
-            #expect(section.pullRequests.allSatisfy { status($0).badge == badge })
-            #expect(section.title == badge.name)
-        }
-    }
-
-    @Test func reviewStatesFollowTheirOrder() {
-        let groups = sections(.reviewState)
-        #expect(groups.count > 1)
-        let states = groups.compactMap { $0.pullRequests.first.map { ListFilter.ReviewState($0.reviewDecision) } }
-        #expect(states == ListFilter.ReviewState.allCases.filter(Set(states).contains))
-        for (section, state) in zip(groups, states) {
-            #expect(section.pullRequests.allSatisfy { ListFilter.ReviewState($0.reviewDecision) == state })
+        for (group, badge) in zip(groups, badges) {
+            #expect(group.pullRequests.allSatisfy { status($0).badge == badge })
+            #expect(group.title == badge.name)
         }
     }
 
     @Test func groupsLeftEmptyByAFilterAreNotShown() {
         let filtered = ListFilter(repositories: [MockCast.api]).pullRequests(in: open, status: status)
-        let groups = sections(.repository, filtered)
-        #expect(groups.map(\.id) == ["repository:\(MockCast.api.fullName)"])
-        #expect(groups.first?.count == filtered.count)
+        let built = tree(orgThenRepository, filtered)
+        #expect(built.groups.map(\.id) == ["organization:acme"])
+        #expect(built.groups.first?.children.map(\.title) == ["api"])
+        #expect(built.groups.first?.count == filtered.count)
     }
 
-    @Test func groupingNamesAndRawValuesAreFixed() {
-        #expect(ListGrouping.allCases.map(\.name) == ["None", "Repository", "Author", "Status", "Review state"])
-        #expect(ListGrouping.allCases.map(\.rawValue) == ["none", "repository", "author", "status", "reviewState"])
+    // MARK: Rows
+
+    @Test func rowsSayHowDeepTheySitAndWhatIsAlreadyNamed() {
+        let rows = tree(orgThenRepository).rows(closed: [])
+        guard case .group(let acme, true) = rows[0].content else { Issue.record("first row is not acme"); return }
+        #expect(acme.title == "acme" && rows[0].depth == 0)
+        guard case .group(let api, true) = rows[1].content else { Issue.record("second row is not api"); return }
+        #expect(api.title == "api" && rows[1].depth == 1 && rows[1].namedByAncestors == [.organization])
+        guard case .pullRequest(let pr) = rows[2].content else { Issue.record("third row is not a pull request"); return }
+        #expect(pr.repository == MockCast.api)
+        #expect(rows[2].depth == 2 && rows[2].namedByAncestors == [.organization, .repository])
     }
 
-    // MARK: Collapsing
-
-    @Test func collapsedSectionsHideTheirRowsInScreenOrder() {
-        let groups = sections(.repository)
-        #expect(groups.count >= 3)
-        let collapsed: Set<String> = [groups[1].id]
-        let visible = ListGrouping.repository.visible(groups, collapsed: collapsed)
-        let expected = ([groups[0]] + groups.dropFirst(2)).flatMap(\.pullRequests).map(\.id)
-        #expect(visible.map(\.id) == expected)
-        #expect(ListGrouping.repository.visible(groups, collapsed: []).map(\.id) == groups.flatMap(\.pullRequests).map(\.id))
+    @Test func aClosedRowHidesWhatItHoldsAndKeepsItsCount() {
+        let built = tree(orgThenRepository)
+        let api = "organization:acme|repository:acme/api"
+        let rows = built.rows(closed: [api])
+        let apiRow = rows.first { $0.id == .group(api) }
+        guard case .group(let group, false)? = apiRow?.content else { Issue.record("api is not a closed row"); return }
+        #expect(group.count == open.count { $0.repository == MockCast.api })
+        #expect(!rows.contains { row in
+            if case .pullRequest(let pr) = row.content { pr.repository == MockCast.api } else { false }
+        })
+        // Closing an organization hides its repositories' rows too.
+        let closedOrg = built.rows(closed: ["organization:acme"])
+        #expect(closedOrg.first?.id == .group("organization:acme"))
+        #expect(closedOrg[1].id == .group("organization:globex"))
     }
 
-    @Test func theFlatListNeverFolds() {
-        let flat = sections(.none)
-        #expect(ListGrouping.none.visible(flat, collapsed: ["all"]).map(\.id) == open.map(\.id))
-        #expect(!ListGrouping.none.canCollapseAll(flat, collapsed: []))
-        #expect(!ListGrouping.none.canExpandAll(flat, collapsed: ["all"]))
-    }
-
-    @Test func idsOfSectionsNotShownAreHarmless() {
-        let groups = sections(.status)
+    @Test func idsOfRowsNotInTheTreeAreHarmless() {
+        let built = tree(ListGrouping(.status))
         let stale: Set<String> = ["repository:acme/gone", "author:nobody"]
-        #expect(ListGrouping.status.visible(groups, collapsed: stale).count == open.count)
-        #expect(!ListGrouping.status.canExpandAll(groups, collapsed: stale))
+        #expect(built.visiblePullRequests(closed: stale).count == open.count)
+        #expect(!built.canOpenAll(closed: stale))
     }
 
-    @Test func toggleOneSection() {
-        var collapsed: Set<String> = []
-        ListGrouping.toggle("repository:acme/api", in: &collapsed)
-        #expect(collapsed == ["repository:acme/api"])
-        ListGrouping.toggle("repository:acme/api", in: &collapsed)
-        #expect(collapsed.isEmpty)
+    // MARK: Selection
+
+    @Test func theNearestVisibleRowIsTheOutermostClosedOne() {
+        let built = tree(orgThenRepository)
+        let pr = built.groups[0].children[0].pullRequests[0]
+        let api = built.groups[0].children[0].id
+        #expect(built.ancestorIDs(of: .pullRequest(pr.id)) == ["organization:acme", api])
+        #expect(built.parent(of: .pullRequest(pr.id)) == .group(api))
+        #expect(built.parent(of: .group(api)) == .group("organization:acme"))
+        #expect(built.parent(of: .group("organization:acme")) == nil)
+        #expect(built.nearestVisible(.pullRequest(pr.id), closed: []) == .pullRequest(pr.id))
+        #expect(built.nearestVisible(.pullRequest(pr.id), closed: [api]) == .group(api))
+        #expect(built.nearestVisible(.pullRequest(pr.id), closed: [api, "organization:acme"]) == .group("organization:acme"))
+        #expect(built.nearestVisible(.pullRequest("no-such-id"), closed: []) == nil)
+        #expect(built.isVisible(.group(api), closed: [api]))
+        #expect(!built.isVisible(.group(api), closed: ["organization:acme"]))
     }
 
-    @Test func optionClickTogglesEverySectionFromTheClickedOne() {
-        let groups = sections(.repository)
-        let all = Set(groups.map(\.id))
-        var collapsed: Set<String> = ["author:someone", groups[1].id]
-        // The clicked section is expanded, so every section collapses.
-        ListGrouping.toggleAll(from: groups[0].id, sections: groups, in: &collapsed)
-        #expect(collapsed == all.union(["author:someone"]))
-        // Now it is collapsed, so every section expands, and other groupings' ids stay.
-        ListGrouping.toggleAll(from: groups[0].id, sections: groups, in: &collapsed)
-        #expect(collapsed == ["author:someone"])
-        // From a collapsed section while others are expanded: every section expands.
-        collapsed = [groups[2].id]
-        ListGrouping.toggleAll(from: groups[2].id, sections: groups, in: &collapsed)
-        #expect(collapsed.isEmpty)
+    // MARK: Opening and closing
+
+    @Test func toggleOneRow() {
+        var closed: Set<String> = []
+        ListTree.toggle("repository:acme/api", in: &closed)
+        #expect(closed == ["repository:acme/api"])
+        ListTree.toggle("repository:acme/api", in: &closed)
+        #expect(closed.isEmpty)
+    }
+
+    /// Option-click on a triangle acts on every row at its level, and no other.
+    @Test func optionClickTogglesEveryRowAtTheLevel() {
+        let built = tree(orgThenRepository)
+        let repositories = Set(built.allGroups.filter { $0.depth == 1 }.map(\.id))
+        let first = built.groups[0].children[0].id
+        var closed: Set<String> = ["author:someone"]
+        built.toggleLevel(from: first, in: &closed)
+        #expect(closed == repositories.union(["author:someone"]))
+        built.toggleLevel(from: first, in: &closed)
+        #expect(closed == ["author:someone"])
+        built.toggleLevel(from: "organization:acme", in: &closed)
+        #expect(closed == ["author:someone", "organization:acme", "organization:globex"])
     }
 
     @Test func collapseAllAndExpandAllAreOnlyOfferedWhenTheyChangeSomething() {
-        let groups = sections(.reviewState)
-        var collapsed: Set<String> = []
-        #expect(ListGrouping.reviewState.canCollapseAll(groups, collapsed: collapsed))
-        #expect(!ListGrouping.reviewState.canExpandAll(groups, collapsed: collapsed))
-        ListGrouping.setAll(collapsed: true, sections: groups, in: &collapsed)
-        #expect(!ListGrouping.reviewState.canCollapseAll(groups, collapsed: collapsed))
-        #expect(ListGrouping.reviewState.canExpandAll(groups, collapsed: collapsed))
-        #expect(ListGrouping.reviewState.visible(groups, collapsed: collapsed).isEmpty)
-        ListGrouping.setAll(collapsed: false, sections: groups, in: &collapsed)
-        #expect(collapsed.isEmpty)
-    }
-
-    @Test func findsTheSectionHoldingAPullRequest() {
-        let groups = sections(.author)
-        let pr = groups[1].pullRequests[0]
-        #expect(ListGrouping.sectionID(containing: pr.id, in: groups) == groups[1].id)
-        #expect(ListGrouping.sectionID(containing: "no-such-id", in: groups) == nil)
+        let built = tree(orgThenRepository)
+        var closed: Set<String> = []
+        #expect(built.canCloseAll(closed: closed))
+        #expect(!built.canOpenAll(closed: closed))
+        built.setAll(closed: true, in: &closed)
+        #expect(closed == Set(built.allGroups.map(\.id)))
+        #expect(!built.canCloseAll(closed: closed))
+        #expect(built.canOpenAll(closed: closed))
+        #expect(built.rows(closed: closed).map(\.id) == built.groups.map { .group($0.id) })
+        built.setAll(closed: false, in: &closed)
+        #expect(closed.isEmpty)
     }
 }

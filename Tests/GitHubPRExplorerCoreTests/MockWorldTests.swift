@@ -113,11 +113,21 @@ import Testing
         #expect(decoded.pullRequests == world.pullRequests)
     }
 
-    @Test func everyRepositoryOwnerIsAcme() {
-        #expect(world.repositories.allSatisfy { $0.owner == "acme" })
-        #expect(world.pullRequests.allSatisfy { $0.repository.owner == "acme" })
-        #expect(world.pullRequests.allSatisfy { pr in pr.linkedIssues.allSatisfy { $0.repository.owner == "acme" } })
+    /// Two placeholder organizations: acme, where most of the work is, and globex, so the list
+    /// can be grouped by organization (MAC-111).
+    @Test func everyRepositoryOwnerIsAPlaceholderOrganization() {
+        let owners: Set<String> = ["acme", "globex"]
+        #expect(Set(world.repositories.map(\.owner)) == owners)
+        #expect(Set(world.pullRequests.map(\.repository.owner)) == owners)
+        #expect(world.pullRequests.allSatisfy { pr in pr.linkedIssues.allSatisfy { owners.contains($0.repository.owner) } })
         #expect(world.teams.allSatisfy { $0.organization == "acme" })
+    }
+
+    @Test func theSecondOrganizationHasOpenPullRequestsInTwoRepositories() {
+        for repository in MockCast.secondOrganizationRepositories {
+            #expect(open.contains { $0.repository == repository }, "\(repository)")
+        }
+        #expect(open.contains { $0.repository.owner == "globex" && world.viewer.isViewer($0.author) })
     }
 
     @Test func everyAccountIsFromTheCast() {

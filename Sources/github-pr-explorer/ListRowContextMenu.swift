@@ -95,11 +95,13 @@ struct ShorthandEditor: View {
     @State private var text: String
     @FocusState private var focused: Bool
 
-    init(edit: ShorthandEdit, shorthands: Shorthands, close: @escaping () -> Void) {
+    /// - Parameter text: What the field starts with, for renders. The shorthand there is, or
+    ///   the suggestion, by default.
+    init(edit: ShorthandEdit, shorthands: Shorthands, text: String? = nil, close: @escaping () -> Void) {
         self.edit = edit
         self.shorthands = shorthands
         self.close = close
-        _text = State(initialValue: edit.initialText)
+        _text = State(initialValue: text ?? edit.initialText)
     }
 
     static let width: CGFloat = 340

@@ -39,7 +39,7 @@ struct ShorthandsSettingsView: View {
                 }
             }
             Section {
-                FileFootnote(text: "Saved in shorthands.json in the configuration folder. Editing that file, or `github-pr-explorer-ctl shorthands set`, changes these too.")
+                FileFootnote(text: "Saved in shorthands.json in the configuration folder. Editing that file, Set Shorthand on a row of the pull request list, or `github-pr-explorer-ctl shorthands set` changes these too.")
             }
         }
         .formStyle(.grouped)

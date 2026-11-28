@@ -4,7 +4,7 @@ import Testing
 
 @Suite struct ListGroupingTests {
     let world = MockWorld.standard
-    var open: [PullRequest] { FixedListView.everythingOpen.pullRequests(in: world.pullRequests, viewer: world.viewer) }
+    var open: [PullRequest] { world.pullRequests.filter { $0.state == .open } }
 
     func status(_ pr: PullRequest) -> StatusSentence { pr.statusSentence(for: world.viewer, now: world.now) }
 

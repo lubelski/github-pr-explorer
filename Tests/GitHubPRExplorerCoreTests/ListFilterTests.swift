@@ -138,7 +138,7 @@ import Testing
 
     @Test func combinesWithAViewAndASearch() {
         let searched = world.index.search("auth")
-        let inView = FixedListView.everythingOpen.pullRequests(in: searched, viewer: world.viewer)
+        let inView = searched.filter { $0.state == .open }
         let kept = filtered(ListFilter(repositories: [MockCast.api]), inView)
         #expect(kept.allSatisfy { $0.repository == MockCast.api && $0.state == .open })
         #expect(kept.count <= inView.count)

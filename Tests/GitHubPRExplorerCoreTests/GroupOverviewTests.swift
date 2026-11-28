@@ -6,8 +6,9 @@ import Testing
 /// move each card is.
 @Suite struct GroupOverviewTests {
     let world = MockWorld.standard
-    var open: [PullRequest] { FixedListView.everythingOpen.pullRequests(in: world.pullRequests, viewer: world.viewer) }
-    var mine: [PullRequest] { FixedListView.mine.pullRequests(in: world.pullRequests, viewer: world.viewer) }
+    var context: FilterContext { FilterContext(viewer: world.viewer, now: world.now) }
+    var open: [PullRequest] { SavedFilter.everything.evaluate(world.pullRequests, context: context).matches }
+    var mine: [PullRequest] { SavedFilter.mine.evaluate(world.pullRequests, context: context).matches }
 
     func status(_ pr: PullRequest) -> StatusSentence { pr.statusSentence(for: world.viewer, now: world.now) }
 

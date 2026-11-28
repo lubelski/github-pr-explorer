@@ -248,7 +248,7 @@ enum SettingsPreviews {
             let snapshot = store.snapshot
             let app = model(snapshot)
             app.apply(snapshot, previous: nil)
-            app.listView = .everythingOpen
+            app.selectedFilterID = SavedFilter.everythingID
             configure(app)
             return AnyView(MainWindowView(model: app, updater: .unavailable())
                 .environment(\.hidesBotEventsInActivity, app.hidesBotEventsInActivity))

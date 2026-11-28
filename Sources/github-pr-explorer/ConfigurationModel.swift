@@ -114,14 +114,20 @@ final class ConfigurationModel {
 
     // MARK: Changing, all through the store
 
-    private func change(_ action: () throws -> Void) {
+    /// Runs a change through the store and reads the folder again. Says whether it was made: a
+    /// refused change is logged and beeps.
+    @discardableResult
+    func change(_ action: () throws -> Void) -> Bool {
+        var made = true
         do {
             try action()
         } catch {
+            made = false
             log((error as? ConfigurationError)?.message ?? error.localizedDescription)
             NSSound.beep()
         }
         refresh()
+        return made
     }
 
     func setAppearance(_ appearance: Appearance) {

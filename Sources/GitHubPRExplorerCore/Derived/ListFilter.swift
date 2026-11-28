@@ -9,9 +9,11 @@ import Foundation
 /// form "field is one of values", and the filter is all of them together.
 ///
 /// The menu's choices are kept as plain sets so the menu can tick them. Its conditions are the
-/// filter language's (`FilterCondition`), and `filter` gives it as a filter of one set. When
-/// the window moves to saved filters, the menu writes conditions directly and this type goes
-/// away, as `FixedListView` will.
+/// filter language's (`FilterCondition`), and `filter` gives it as a filter of one set.
+///
+/// Since the window moved to saved filters and the Filter popover, which edit the filter
+/// language directly (`FilterDraft`), nothing in the window uses this type. Its `ReviewState`
+/// is still the review state's vocabulary. The rest is to go, with its tests.
 public struct ListFilter: Codable, Sendable, Hashable {
     /// What to do with drafts.
     public enum Drafts: String, Codable, Sendable, Hashable, CaseIterable, Identifiable {

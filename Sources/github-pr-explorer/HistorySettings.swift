@@ -83,7 +83,7 @@ extension ConfigurationVersion {
         case ChangeAuthor.settingsWindow.rawValue: "gearshape"
         case ChangeAuthor.editedOnDisk.rawValue: "doc.text"
         case ChangeAuthor.commandLine.rawValue: "terminal"
-        case ChangeAuthor.mainWindow.rawValue: "list.bullet"
+        case ChangeAuthor.mainWindow.rawValue: "macwindow"
         default: "app"
         }
     }

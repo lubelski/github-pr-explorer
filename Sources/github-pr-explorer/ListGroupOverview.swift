@@ -7,7 +7,7 @@ import SwiftUI
 /// Nothing on it has a fixed place: it is the blocks of an `OverviewLayout`, top to bottom,
 /// today the built-in one, a summary and then the pull requests as cards. It reads the tree
 /// the list draws, so it holds exactly the rows under the selected row, within the chosen
-/// view, the search and the filters.
+/// tab, a filter applied on it, and the search.
 struct ListGroupOverview: View {
     @Bindable var model: AppModel
     let group: ListGroup
@@ -21,8 +21,7 @@ struct ListGroupOverview: View {
         let context = OverviewContext(
             viewer: model.index.viewer, now: model.now, shorthands: model.shorthands,
             unnarrowedCount: model.unnarrowedCount(ofGroup: group.id),
-            narrowedBy: model.searchText.isEmpty ? "the filters"
-                : model.listFilter.isEmpty ? "the search" : "the search and the filters",
+            narrowedBy: model.narrowedBy,
             select: { model.listSelection = $0 })
         ScrollView(.vertical) {
             LazyVStack(alignment: .leading, spacing: 28) {
@@ -47,10 +46,10 @@ struct OverviewContext {
     /// The clock ages are measured from.
     let now: Date
     let shorthands: Shorthands
-    /// How many the row would hold without the search and the filters, or nil when they do
-    /// not narrow the list.
+    /// How many the row would hold in the chosen tab's own saved filter, without the search
+    /// and a filter applied on the tab, or nil when neither narrows the list.
     let unnarrowedCount: Int?
-    /// What narrows it: "the search", "the filters", or both.
+    /// What narrows it: "the search", "the applied filter", or both.
     let narrowedBy: String
     /// Selects a row of the list: a pull request, which opens its page, or a title row.
     let select: (ListSelection) -> Void
@@ -98,7 +97,9 @@ struct OverviewSummaryBlock: View {
             Text(summary)
                 .font(.system(size: 13))
                 .foregroundStyle(.secondary)
-            if let total = context.unnarrowedCount, total != group.count {
+            // An applied filter takes the place of the tab's own, so it can hold more than the
+            // tab does. The line shows only when the row holds fewer, so it is never wrong.
+            if let total = context.unnarrowedCount, group.count < total {
                 Label {
                     Text("Narrowed by \(context.narrowedBy): \(group.count) of \(total) shown")
                 } icon: {

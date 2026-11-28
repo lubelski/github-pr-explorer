@@ -39,12 +39,13 @@ import Testing
     @Test func theDefaultSavedFiltersAreTodaysViews() {
         let all = world.pullRequests
         let viewer = world.viewer
+        // The fixed views' predicates, as they were written before saved filters took their place.
+        let open = all.filter { $0.state == .open }
         #expect(SavedFilter.needsMyReview.evaluate(all, context: context).matches.map(\.id)
-                == FixedListView.needsMyReview.pullRequests(in: all, viewer: viewer).map(\.id))
+                == open.filter { $0.isReviewRequested(from: viewer) }.map(\.id))
         #expect(SavedFilter.mine.evaluate(all, context: context).matches.map(\.id)
-                == FixedListView.mine.pullRequests(in: all, viewer: viewer).map(\.id))
-        #expect(SavedFilter.everything.evaluate(all, context: context).matches.map(\.id)
-                == FixedListView.everythingOpen.pullRequests(in: all, viewer: viewer).map(\.id))
+                == open.filter { viewer.isViewer($0.author) }.map(\.id))
+        #expect(SavedFilter.everything.evaluate(all, context: context).matches.map(\.id) == open.map(\.id))
         #expect(SavedFilter.needsMyReview.evaluate(all, context: context).count == 53)
         #expect(SavedFilter.mine.evaluate(all, context: context).count == 12)
         #expect(SavedFilter.everything.evaluate(all, context: context).count == 218)

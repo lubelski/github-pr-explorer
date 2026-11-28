@@ -30,10 +30,23 @@ final class AppModel {
     var shorthands = Shorthands.none
 
     var searchText = ""
-    /// The list's advanced filters. They narrow the chosen view together with the search.
-    /// Like the search, they are not remembered across launches: a filter worth keeping is a
-    /// saved view, which the filter language will bring.
-    var listFilter = ListFilter.none
+    /// Everything, then the saved filters from `saved-filters.json`, in tab order. The tabs
+    /// above the list and the » menu are made from it. See `AppModel+SavedFilters.swift`.
+    var savedFilters: [SavedFilter] = [.everything] + SavedFilterFile.defaults.savedFilters
+    /// A filter applied from the Filter popover and not saved. It takes the place of the chosen
+    /// tab's own filter, and that tab shows a dot. Like the search it is window state that is
+    /// not remembered: it is dropped on Clear, on choosing another tab, and on quitting.
+    var appliedFilter: PullRequestFilter?
+    /// A saved filter that is not a tab, chosen from the » menu. It shows as a temporary last
+    /// tab while it is chosen.
+    var temporaryFilterID: String?
+    /// The saved filter whose editing popover is open on its tab.
+    var editingFilterID: String?
+    /// Whether the Filter popover is open.
+    var showsFilterPopover = false
+    /// Writes saved filters to the configuration folder. Set by the app, and by renders to a
+    /// temporary folder. Without one, the window cannot change saved filters.
+    @ObservationIgnored var savedFilterStore: SavedFilterStore?
     /// The row selected in the list: a pull request, or a title row of the tree. Choosing
     /// another pull request closes the panes: they belong to the pull request they were opened
     /// on. Remembered across launches as window state.
@@ -64,9 +77,15 @@ final class AppModel {
     var selectedTab = 0
     var showsList = true
 
-    /// Which of the fixed views the list shows. Remembered across launches as window state.
-    var listView: FixedListView {
-        didSet { if listView != oldValue { remember(listView.rawValue, for: WindowState.listView) } }
+    /// The saved filter the list shows, by id. Choosing one drops a filter applied on the tab
+    /// before, and a saved filter with a grouping sets the list's grouping. Remembered across
+    /// launches as window state.
+    var selectedFilterID: String {
+        didSet {
+            guard selectedFilterID != oldValue else { return }
+            remember(selectedFilterID, for: WindowState.selectedFilter)
+            didChooseFilter(from: oldValue)
+        }
     }
     /// How the list is drawn: one run of rows, or a tree of up to two levels. Remembered across
     /// launches as window state, like the view.
@@ -113,7 +132,7 @@ final class AppModel {
         self.build = build
         self.windowState = windowState
         self.layoutID = LayoutLibrary.fallbackID
-        self.listView = windowState?.string(forKey: WindowState.listView).flatMap(FixedListView.init(rawValue:)) ?? .standard
+        self.selectedFilterID = Self.rememberedFilterID(windowState)
         // A value saved by the one-level grouping, such as `repository`, reads as that level.
         self.listGrouping = windowState?.string(forKey: WindowState.listGrouping).map(ListGrouping.init(storedValue:)) ?? .standard
         self.closedGroups = Set(windowState?.stringArray(forKey: WindowState.closedGroups) ?? [])
@@ -140,10 +159,10 @@ final class AppModel {
         listSelection = remembered
     }
 
-    /// The pull requests in the chosen view that match the search and the filters, most
-    /// recently updated first.
+    /// The open pull requests that match the chosen tab's filter, or the filter applied on it,
+    /// and the search, most recently updated first.
     var listedPullRequests: [PullRequest] {
-        listView.pullRequests(in: searchedAndFiltered, viewer: index.viewer)
+        currentFilter.pullRequests(in: searchedOpen, context: filterContext)
     }
 
     /// The listed pull requests as the tree the list draws. With no grouping it has no title
@@ -158,13 +177,25 @@ final class AppModel {
         listSelection?.groupID.flatMap { listTree.group(id: $0) }
     }
 
-    /// How many pull requests a title row would hold in the chosen view without the search and
-    /// the filters, so the overview can say it is narrowed. Nil when neither narrows the list.
+    /// How many pull requests a title row would hold in the chosen tab's own saved filter,
+    /// without the search and without a filter applied on the tab and not saved, so the
+    /// overview can say it is narrowed. Nil when neither is in effect.
     func unnarrowedCount(ofGroup id: String) -> Int? {
-        guard !searchText.isEmpty || !listFilter.isEmpty else { return nil }
-        let all = listView.pullRequests(in: index.allPullRequests, viewer: index.viewer)
-        return ListTree(grouping: listGrouping, pullRequests: all, viewer: index.viewer, status: status(for:))
+        guard !searchText.isEmpty || hasUnsavedFilter else { return nil }
+        let all = selectedFilter.filter.pullRequests(in: openPullRequests, context: filterContext)
+        return ListTree(grouping: listGrouping, pullRequests: all, viewer: index.viewer, status: status(for:),
+                        shorthands: shorthands)
             .group(id: id)?.count
+    }
+
+    /// What narrows the list within the chosen tab, for the overview's "Narrowed by" line:
+    /// the search, a filter applied on the tab and not saved, or both.
+    var narrowedBy: String {
+        switch (searchText.isEmpty, hasUnsavedFilter) {
+        case (false, true): "the search and the applied filter"
+        case (false, false): "the search"
+        default: "the applied filter"
+        }
     }
 
     /// Opens or closes one title row, or with `level` every row at its level, as Option-click
@@ -213,25 +244,21 @@ final class AppModel {
         }
     }
 
-    /// How many pull requests each view holds, within the search and the filters, so a view's
-    /// count is always the number of rows choosing it would show.
-    var countsByView: [FixedListView: Int] {
-        let found = searchedAndFiltered
-        let viewer = index.viewer
-        return Dictionary(uniqueKeysWithValues: FixedListView.allCases.map { view in
-            (view, found.count { view.includes($0, viewer: viewer) })
-        })
+    /// The open pull requests that match the search, before any filter.
+    var searchedOpen: [PullRequest] {
+        index.search(searchText, shorthands: shorthands).filter { $0.state == .open }
     }
 
-    private var searchedAndFiltered: [PullRequest] {
-        listFilter.pullRequests(in: index.search(searchText, shorthands: shorthands), status: status(for:))
-    }
-
-    /// What the filter menu offers: the repositories, authors, statuses and review states of
-    /// the open pull requests in the index, and whatever the filters already hold.
-    var filterChoices: ListFilterChoices {
-        ListFilterChoices(pullRequests: index.allPullRequests.filter { $0.state == .open }, viewer: index.viewer,
-                          status: status(for:), keeping: listFilter)
+    /// What a filter needs to match: who "me" is and each pull request's status, from the
+    /// statuses this model has worked out already.
+    var filterContext: FilterContext {
+        // Every open pull request's status is worked out once and kept, so the closure reads
+        // a plain dictionary and needs nothing from the main actor.
+        for pr in index.allPullRequests where pr.state == .open && statusByID[pr.id] == nil {
+            statusByID[pr.id] = pr.statusSentence(for: index.viewer, now: now)
+        }
+        let known = statusByID, viewer = index.viewer, now = now
+        return FilterContext(viewer: viewer) { known[$0.id] ?? $0.statusSentence(for: viewer, now: now) }
     }
 
     /// Whether Sync Now means anything: only when pull requests come from GitHub.
@@ -260,13 +287,28 @@ final class AppModel {
     /// Window state, not configuration: where the window was left, kept in `UserDefaults`.
     /// Settings that change what the app does belong in the configuration folder instead.
     private enum WindowState {
+        /// Where the three fixed views kept their choice before saved filters. Read once, so
+        /// the list opens where it was left.
         static let listView = "MainWindow.listView"
+        static let selectedFilter = "MainWindow.selectedFilter"
         static let listWidth = "MainWindow.listWidth"
         static let listGrouping = "MainWindow.listGrouping"
         /// The key the one-level grouping used for its collapsed sections. Their ids are the
         /// tree's ids for the same rows, so the set is kept under its old name.
         static let closedGroups = "MainWindow.collapsedSections"
         static let selection = "MainWindow.selection"
+    }
+
+    /// The saved filter chosen at the last launch. Before saved filters, the list kept one of
+    /// three fixed views, which are now Everything and the two default saved filters. With
+    /// nothing remembered, the list opens on Everything.
+    private static func rememberedFilterID(_ windowState: UserDefaults?) -> String {
+        if let id = windowState?.string(forKey: WindowState.selectedFilter) { return id }
+        switch windowState?.string(forKey: WindowState.listView) {
+        case "needsMyReview": return SavedFilter.needsMyReview.id
+        case "mine": return SavedFilter.mine.id
+        default: return SavedFilter.everythingID
+        }
     }
 
     private func remember(_ value: Any?, for key: String) {
@@ -289,6 +331,7 @@ final class AppModel {
         library = configuration.library
         hidesBotEventsInActivity = configuration.settings.hidesBotEventsInActivity
         shorthands = configuration.shorthands
+        applySavedFilters(configuration.filters)
         let defaultID = configuration.defaultLayout.id
         if previous == nil || previous?.defaultLayout.id != defaultID {
             layoutID = defaultID

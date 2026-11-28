@@ -7,7 +7,9 @@ import Testing
 /// organizations as a third kind of shorthand.
 @Suite struct ListRowMenuTests {
     let world = MockWorld.standard
-    var open: [PullRequest] { FixedListView.everythingOpen.pullRequests(in: world.pullRequests, viewer: world.viewer) }
+    var open: [PullRequest] {
+        SavedFilter.everything.evaluate(world.pullRequests, context: FilterContext(viewer: world.viewer, now: world.now)).matches
+    }
 
     func tree(_ grouping: ListGrouping, shorthands: Shorthands = .none) -> ListTree {
         ListTree(grouping: grouping, pullRequests: open, viewer: world.viewer,

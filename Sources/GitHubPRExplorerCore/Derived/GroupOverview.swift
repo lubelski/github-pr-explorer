@@ -4,7 +4,7 @@ import Foundation
 /// how many ask the viewer's review and how many of the viewer's own wait on them, and the pull requests as cards in sections.
 ///
 /// It is built from the title row as the list's tree has it, so it holds exactly the rows the
-/// list holds under that row, within the chosen view, the search and the filters.
+/// list holds under that row, within the chosen tab, a filter applied on it, and the search.
 ///
 /// Sections are the title rows one level down, as the tree has them: an organization grouped
 /// then by repository has one section per repository. At the last level there is nothing below

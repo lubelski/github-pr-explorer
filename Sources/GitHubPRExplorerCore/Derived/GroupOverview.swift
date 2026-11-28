@@ -1,7 +1,7 @@
 import Foundation
 
 /// What the overview of a selected title row shows: how many pull requests are in each status,
-/// how many wait on the viewer, and the pull requests as cards in sections.
+/// how many ask the viewer's review and how many of the viewer's own wait on them, and the pull requests as cards in sections.
 ///
 /// It is built from the title row as the list's tree has it, so it holds exactly the rows the
 /// list holds under that row, within the chosen view, the search and the filters.
@@ -33,9 +33,12 @@ public struct GroupOverview: Sendable {
         public var pullRequest: PullRequest
         public var status: StatusSentence
         public var nextMove: NextMove
-        /// A review is asked of the viewer or one of the viewer's teams, or the viewer wrote it
-        /// and it waits on them, other than as a draft.
-        public var needsViewer: Bool
+        /// A review is asked of the viewer or one of the viewer's teams: someone waits on them.
+        public var asksViewersReview: Bool
+        /// The viewer wrote it and it waits on them, other than as a draft.
+        public var isViewersMove: Bool
+        /// Either: the card needs the viewer.
+        public var needsViewer: Bool { asksViewersReview || isViewersMove }
 
         public var id: PullRequest.ID { pullRequest.id }
     }
@@ -67,8 +70,10 @@ public struct GroupOverview: Sendable {
     public let ancestorProperties: [ListGrouping.Property]
     /// Every status that has at least one pull request, in the badges' order.
     public let statusCounts: [StatusCount]
-    /// How many cards need the viewer.
-    public let needsViewerCount: Int
+    /// How many cards ask a review of the viewer or one of the viewer's teams.
+    public let reviewsAskedOfViewerCount: Int
+    /// How many of the viewer's own cards wait on the viewer.
+    public let viewersMoveCount: Int
     public let sections: [Section]
 
     public init(group: ListGroup, in tree: ListTree, viewer: Viewer,
@@ -83,13 +88,14 @@ public struct GroupOverview: Sendable {
             let move = Self.nextMove(pr, status: sentence)
             let viewersMove = if case .author(let author) = move { viewer.isViewer(author) && !pr.isDraft } else { false }
             return Card(pullRequest: pr, status: sentence, nextMove: move,
-                        needsViewer: sentence.isReviewRequestedFromViewer || viewersMove)
+                        asksViewersReview: sentence.isReviewRequestedFromViewer, isViewersMove: viewersMove)
         }
 
         let cards = group.pullRequests.map(card)
         let cardByID = Dictionary(cards.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
         self.statusCounts = Self.counts(cards)
-        self.needsViewerCount = cards.count { $0.needsViewer }
+        self.reviewsAskedOfViewerCount = cards.count { $0.asksViewersReview }
+        self.viewersMoveCount = cards.count { $0.isViewersMove }
 
         if !group.children.isEmpty {
             sections = group.children.map { child in

@@ -144,14 +144,18 @@ import Testing
         for card in cards {
             let theirMove = card.nextMove == .author(card.pullRequest.author)
                 && world.viewer.isViewer(card.pullRequest.author) && !card.pullRequest.isDraft
-            #expect(card.needsViewer == (card.status.isReviewRequestedFromViewer || theirMove), "\(card.pullRequest.reference)")
+            #expect(card.isViewersMove == theirMove, "\(card.pullRequest.reference)")
+            #expect(card.asksViewersReview == card.status.isReviewRequestedFromViewer, "\(card.pullRequest.reference)")
         }
-        #expect(acme.needsViewerCount == cards.count { $0.needsViewer })
-        #expect(acme.needsViewerCount > 0)
-        #expect(acme.needsViewerCount < cards.count)
+        #expect(acme.reviewsAskedOfViewerCount == cards.count { $0.asksViewersReview })
+        #expect(acme.viewersMoveCount == cards.count { $0.isViewersMove })
+        #expect(acme.reviewsAskedOfViewerCount > 0)
+        #expect(acme.viewersMoveCount > 0)
+        #expect(cards.count { $0.needsViewer } < cards.count)
         // The worked example asks a review of the viewer's team.
         let example = try #require(cards.first { $0.pullRequest.reference == MockWorld.workedExample })
-        #expect(example.needsViewer)
+        #expect(example.asksViewersReview)
+        #expect(!example.isViewersMove)
     }
 
     /// The mock world gives the overview a group of about 200, for scrolling.

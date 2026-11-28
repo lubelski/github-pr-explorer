@@ -55,6 +55,11 @@ final class AppModel {
     var listView: FixedListView {
         didSet { if listView != oldValue { remember(listView.rawValue, for: WindowState.listView) } }
     }
+    /// How the list is drawn: one run of rows, or in sections. Remembered across launches as
+    /// window state, like the view.
+    var listGrouping: ListGrouping {
+        didSet { if listGrouping != oldValue { remember(listGrouping.rawValue, for: WindowState.listGrouping) } }
+    }
     /// The list's width, which the person sets by dragging its edge. Remembered across launches
     /// as window state when a drag ends, through `rememberListWidth()`.
     var listWidth: CGFloat
@@ -76,6 +81,7 @@ final class AppModel {
         self.windowState = windowState
         self.layoutID = LayoutLibrary.fallbackID
         self.listView = windowState?.string(forKey: WindowState.listView).flatMap(FixedListView.init(rawValue:)) ?? .standard
+        self.listGrouping = windowState?.string(forKey: WindowState.listGrouping).flatMap(ListGrouping.init(rawValue:)) ?? .standard
         let width = windowState?.double(forKey: WindowState.listWidth) ?? 0
         self.listWidth = width > 0 ? Self.clampedListWidth(width) : Self.defaultListWidth
         self.selection = selection.flatMap { index.pullRequest($0)?.id } ?? index.allPullRequests.first { $0.state == .open }?.id
@@ -85,6 +91,12 @@ final class AppModel {
     /// recently updated first.
     var listedPullRequests: [PullRequest] {
         listView.pullRequests(in: searchedAndFiltered, viewer: index.viewer)
+    }
+
+    /// The listed pull requests in the sections the list draws. With no grouping, one section
+    /// holds them all.
+    var listSections: [ListGrouping.Section] {
+        listGrouping.sections(of: listedPullRequests, viewer: index.viewer, status: status(for:))
     }
 
     /// How many pull requests each view holds, within the search and the filters, so a view's
@@ -136,6 +148,7 @@ final class AppModel {
     private enum WindowState {
         static let listView = "MainWindow.listView"
         static let listWidth = "MainWindow.listWidth"
+        static let listGrouping = "MainWindow.listGrouping"
     }
 
     private func remember(_ value: Any, for key: String) {
@@ -254,9 +267,9 @@ final class AppModel {
     }
 
     /// Moves the selection up or down the list, for the arrow keys while the search field has
-    /// the keyboard.
+    /// the keyboard. It follows the order on screen, across sections.
     func moveSelection(by offset: Int) {
-        let listed = listedPullRequests
+        let listed = listGrouping.ordered(listedPullRequests, viewer: index.viewer, status: status(for:))
         guard !listed.isEmpty else { return }
         guard let current = selection, let position = listed.firstIndex(where: { $0.id == current }) else {
             selection = (offset >= 0 ? listed.first : listed.last)?.id

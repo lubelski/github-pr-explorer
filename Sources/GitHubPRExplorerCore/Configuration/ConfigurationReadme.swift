@@ -35,6 +35,20 @@ enum ConfigurationReadme {
           `{"kind": "person", "for": "ada-park", "shorthand": "Ada"}`. Display only: titles,
           comments, links and anything sent to GitHub are unchanged. Missing means none.
           `github-pr-explorer-ctl shorthands set` and Settings, Shorthands write it.
+        - `saved-filters.json`: the saved filters, in the order of their tabs. "Everything" is
+          always first and is not in the file. Each saved filter has `id` (lowercase letters,
+          digits and hyphens), `name`, `filter`, and optionally `groupBy` (one or two
+          groupings, outer first, such as `["organization", "repository"]`) and `showsAsTab`
+          (`false` keeps it off the tab bar). A filter is `sets` of `conditions`: a pull request
+          matches when any set matches, and a set matches when all its conditions do. A
+          condition is `field` (`status`, `organization`, `repository`, `author`,
+          `reviewState`, `draft`), `operator` (`is` or `isNot`, default `is`) and `values`,
+          which are alternatives. For example:
+          `{"field": "author", "operator": "isNot", "values": ["dependabot[bot]"]}`.
+          `@me` as an author is you, and `waitingOnMe` as a review state is a review asked of
+          you or your team. A folder with no file uses the defaults, "Needs my review" and
+          "Mine". To check a filter before saving it, run
+          `github-pr-explorer-ctl filters evaluate --filter '<json>'`.
         - `layouts/<id>.json`: your own page layouts, one per file, named after the layout's id.
           A layout has `formatVersion` (`1`), `id` (lowercase letters, digits and hyphens),
           `name`, and `tabs`. A tab has `name` and `columns`. A column has `width` (a number

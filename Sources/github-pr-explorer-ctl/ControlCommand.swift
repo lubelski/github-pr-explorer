@@ -37,12 +37,16 @@ enum ControlCommand {
           layouts                Page layouts: list, show, duplicate.
           shorthands             Short names drawn for repositories and people: list, set,
                                  remove.
+          filters                Saved filters: list, show, evaluate, add, change, move,
+                                 remove.
+          mcp                    Run as an MCP server over standard input and output, with
+                                 the same saved filter operations as tools.
 
         Options:
           --config <folder>      Use this configuration folder instead of the app's.
           --index <folder>       Use this synced index folder instead of the app's, which is
                                  ~/Library/Application Support/github-pr-explorer/index.
-          --source mock|github   For list and show: which index to read. Default: the
+          --source mock|github   For list, show, filters and mcp: which index to read. Default: the
                                  pullRequestSource setting.
 
         Run `\(name) <command> --help` for a command's options.
@@ -153,6 +157,10 @@ enum ControlCommand {
             return layouts(rest, folder: folder)
         case "shorthands":
             return shorthands(rest, folder: folder)
+        case "filters":
+            return filters(rest, folder: folder, index: pullRequests)
+        case "mcp":
+            return .failure("`\(name) mcp` runs an MCP server on standard input and output. Start it from an MCP client.\n\n\(mcpHelp)\n", exitCode: 2)
         case "sync":
             return syncStatusOrHelp(rest, indexFolder: indexFolder)
         default:

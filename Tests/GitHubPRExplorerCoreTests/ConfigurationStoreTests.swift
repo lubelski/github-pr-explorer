@@ -62,7 +62,7 @@ let myLayout = """
         #expect(versions.count == 1)
         #expect(versions[0].summary == "Created the configuration folder")
         #expect(versions[0].author == "app")
-        #expect(Set(versions[0].files) == [".gitignore", "README.md", "settings.json"])
+        #expect(Set(versions[0].files) == [".gitignore", "README.md", "saved-filters.json", "settings.json"])
 
         // A second start changes nothing and records nothing.
         try config.store.prepare(author: .app)

@@ -6,7 +6,7 @@ import Testing
 ///
 /// It is not a full JSON Schema validator. `MiniSchemaValidator` checks the keywords these two
 /// schemas use: type, properties, required, additionalProperties, items, $ref to $defs, enum,
-/// pattern, minLength, maxLength, minItems, exclusiveMinimum, minimum, maximum and propertyNames. The tests check
+/// pattern, minLength, maxLength, minItems, maxItems, exclusiveMinimum, minimum, maximum and propertyNames. The tests check
 /// that the names and enums match the types, that the built-in layouts and the default settings
 /// pass, and that files the app refuses are refused by the schema too.
 @Suite struct SchemaTests {
@@ -133,6 +133,75 @@ import Testing
     }
 }
 
+extension SchemaTests {
+    @Test func savedFiltersSchemaMatchesTheTypes() throws {
+        let schema = try Self.schema("saved-filters.schema.json")
+        let definitions = try #require(schema["$defs"] as? [String: [String: Any]])
+        func keys(_ object: [String: Any]) -> Set<String> {
+            Set((object["properties"] as? [String: Any] ?? [:]).keys).subtracting(["$schema"])
+        }
+        // Every object allows exactly the keys the key check allows.
+        guard case .object(let top) = SavedFilterFile.shape,
+              case .array(.object(let saved)) = top["savedFilters"],
+              case .object(let filter) = PullRequestFilter.shape,
+              case .array(.object(let set)) = filter["sets"],
+              case .array(.object(let condition)) = set["conditions"]
+        else { Issue.record("unexpected shape"); return }
+        #expect(keys(schema) == Set(top.keys))
+        #expect(keys(definitions["savedFilter"] ?? [:]) == Set(saved.keys))
+        #expect(keys(definitions["filter"] ?? [:]) == Set(filter.keys))
+        #expect(keys(definitions["set"] ?? [:]) == Set(set.keys))
+        #expect(keys(definitions["condition"] ?? [:]) == Set(condition.keys))
+
+        let conditionProperties = try #require(definitions["condition"]?["properties"] as? [String: [String: Any]])
+        #expect(conditionProperties["field"]?["enum"] as? [String] == FilterField.allCases.map(\.rawValue))
+        #expect(conditionProperties["operator"]?["enum"] as? [String] == FilterOperator.allCases.map(\.rawValue))
+        // The values the schema describes are the ones the app takes.
+        let valuesText = try #require(conditionProperties["values"]?["description"] as? String)
+        for field in FilterField.allCases {
+            for value in FilterValues.fixed(for: field) ?? [] where field != .draft {
+                #expect(valuesText.contains(value), "\(field.rawValue) \(value) is not described")
+            }
+        }
+        let groupBy = try #require((definitions["savedFilter"]?["properties"] as? [String: [String: Any]])?["groupBy"])
+        #expect(groupBy["maxItems"] as? Int == SavedFilter.maximumGroupingLevels)
+        #expect(schema["properties"].flatMap { ($0 as? [String: [String: Any]])?["formatVersion"]?["enum"] as? [Int] } == [SavedFilterFile.currentFormatVersion])
+
+        for (name, definition) in [("file", schema)] + definitions.map({ ($0.key, $0.value) }) {
+            for (property, value) in definition["properties"] as? [String: [String: Any]] ?? [:] {
+                #expect((value["description"] as? String)?.isEmpty == false, "\(name).\(property) has no description")
+            }
+        }
+    }
+
+    static let badSavedFilters = [
+        #"{"savedFilters": []}"#,
+        #"{"formatVersion": 2, "savedFilters": []}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "Not OK", "name": "A", "filter": {"sets": []}}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "", "filter": {"sets": []}}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A"}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": []}, "colour": "red"}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": []}, "groupBy": ["a", "b", "c"]}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": [{"conditions": [{"field": "label", "values": ["x"]}]}]}}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": [{"conditions": [{"field": "status", "operator": "isn't", "values": ["blocked"]}]}]}}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": [{"conditions": [{"field": "status", "values": []}]}]}}]}"#,
+        #"{"formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": [{"conditions": [{"field": "status"}]}]}}]}"#,
+    ]
+
+    @Test func theDefaultSavedFiltersPassAndBadOnesFailBoth() throws {
+        let validator = MiniSchemaValidator(root: try Self.schema("saved-filters.schema.json"))
+        let defaults = validator.validate(try Self.json(SavedFilterFile.defaults.encoded()))
+        #expect(defaults.isEmpty, "\(defaults)")
+        for text in Self.badSavedFilters {
+            #expect(throws: LayoutFileError.self, "the app accepted \(text)") { try SavedFilterFile.decode(Data(text.utf8)) }
+            #expect(!validator.validate(try Self.json(Data(text.utf8))).isEmpty, "the schema accepted \(text)")
+        }
+        let minimal = #"{"$schema": "../schemas/saved-filters.schema.json", "formatVersion": 1, "savedFilters": [{"id": "a", "name": "A", "filter": {"sets": [{"conditions": [{"field": "author", "values": ["@me"]}]}]}}]}"#
+        #expect(validator.validate(try Self.json(Data(minimal.utf8))).isEmpty)
+        #expect(try SavedFilterFile.decode(Data(minimal.utf8)).savedFilters[0].filter == SavedFilter.mine.filter)
+    }
+}
+
 /// The JSON Schema keywords the two schemas use, and no more.
 struct MiniSchemaValidator {
     let root: [String: Any]
@@ -193,6 +262,7 @@ struct MiniSchemaValidator {
         }
         if let items = value as? [Any] {
             if let minimum = schema["minItems"] as? Int, items.count < minimum { problems.append("\(path): fewer than \(minimum) items") }
+            if let maximum = schema["maxItems"] as? Int, items.count > maximum { problems.append("\(path): more than \(maximum) items") }
             if let itemSchema = schema["items"] as? [String: Any] {
                 for (index, item) in items.enumerated() { problems += check(item, against: itemSchema, at: "\(path)[\(index)]") }
             }

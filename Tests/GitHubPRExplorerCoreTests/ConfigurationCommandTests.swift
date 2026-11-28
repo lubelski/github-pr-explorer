@@ -29,7 +29,7 @@ import Testing
         try config.store.prepare(author: .app)
         result = run("config", "validate")
         #expect(result.exitCode == 0)
-        #expect(result.output == "ok\tsettings.json\n")
+        #expect(result.output == "ok\tsettings.json\nok\tsaved-filters.json\n")
 
         try config.write(myLayout, to: "layouts/mine.json")
         try config.write(#"{"formatVersion": 1, "id": "broken", "name": "B", "tabs": []}"#, to: "layouts/broken.json")
@@ -37,6 +37,7 @@ import Testing
         #expect(result.exitCode == 1)
         #expect(result.output == """
             ok\tsettings.json
+            ok\tsaved-filters.json
             invalid\tlayouts/broken.json, at tabs: a layout needs at least one tab. It is not in use.
             ok\tlayouts/mine.json
 

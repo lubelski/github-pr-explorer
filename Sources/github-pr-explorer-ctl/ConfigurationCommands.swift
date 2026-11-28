@@ -7,9 +7,9 @@ extension ControlCommand {
     static let configHelp = """
         \(name) config <command> [--config <folder>]
 
-        The configuration folder holds settings.json, shorthands.json and layouts/*.json. The
-        app watches it and applies a change as soon as it is saved. Every valid change is kept
-        as a version. `\(name) shorthands` changes shorthands.json.
+        The configuration folder holds settings.json, shorthands.json, saved-filters.json and
+        layouts/*.json. The app watches it and applies a change as soon as it is saved. Every
+        valid change is kept as a version. `\(name) shorthands` changes shorthands.json.
 
         Commands:
           config path                      Print where the folder is.
@@ -137,7 +137,7 @@ extension ControlCommand {
         }
         let snapshot = store.reload()
         let shorthandsFile = FileManager.default.fileExists(atPath: store.shorthandsURL.path) ? [ShorthandsFile.fileName] : []
-        let files = [ConfigurationSettings.fileName] + shorthandsFile + (((try? FileManager.default.contentsOfDirectory(atPath: store.layoutsURL.path)) ?? [])
+        let files = [ConfigurationSettings.fileName] + shorthandsFile + [SavedFilterFile.fileName] + (((try? FileManager.default.contentsOfDirectory(atPath: store.layoutsURL.path)) ?? [])
             .filter { $0.hasSuffix(".json") && !$0.hasPrefix(".") }.sorted().map { "\(ConfigurationStore.layoutsFolderName)/\($0)" })
         var lines: [String] = []
         for file in files {
@@ -176,6 +176,8 @@ extension ControlCommand {
         var settings: ConfigurationSettings
         var layouts: [Layout]
         var shorthands: ShorthandsReport
+        /// Everything first, then the saved filters in their order.
+        var savedFilters: [SavedFilter]
         var problems: [ConfigurationProblem]
     }
 
@@ -191,6 +193,7 @@ extension ControlCommand {
                              overridesBuiltIn: overrides, isDefault: entry.id == defaultID)
             },
             shorthands: ShorthandsReport(snapshot.shorthands),
+            savedFilters: snapshot.filters,
             problems: snapshot.problems)
     }
 
@@ -213,6 +216,10 @@ extension ControlCommand {
             for experiment in Experiment.allCases {
                 text += "  experiments.\(experiment.key)  \(settings.isOn(experiment))\n"
             }
+        }
+        text += "\nSaved filters (\(SavedFilterFile.fileName)), in tab order\n"
+        for saved in report.savedFilters {
+            text += "  \(saved.id)\t\(saved.name)\t\(saved.isEverything ? "fixed" : saved.showsAsTab ? "tab" : "hidden")\t\(saved.summary)\n"
         }
         text += "\nLayouts\n"
         for layout in report.layouts {

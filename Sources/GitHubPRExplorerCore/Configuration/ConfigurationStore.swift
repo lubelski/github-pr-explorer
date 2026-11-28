@@ -67,15 +67,24 @@ public struct ConfigurationSnapshot: Sendable, Hashable {
     public var layouts: [LayoutEntry]
     /// From `shorthands.json`. None when the file is missing.
     public var shorthands: Shorthands
+    /// The saved filters from `saved-filters.json`, in their order, without Everything.
+    public var savedFilters: [SavedFilter]
     public var problems: [ConfigurationProblem]
 
     public init(settings: ConfigurationSettings = .defaults, layouts: [LayoutEntry], shorthands: Shorthands = .none,
-                problems: [ConfigurationProblem] = []) {
+                savedFilters: [SavedFilter] = SavedFilterFile.defaults.savedFilters, problems: [ConfigurationProblem] = []) {
         self.settings = settings
         self.layouts = layouts
         self.shorthands = shorthands
+        self.savedFilters = savedFilters
         self.problems = problems
     }
+
+    /// Everything first, then the saved filters in their order: the tabs and the » menu.
+    public var filters: [SavedFilter] { [.everything] + savedFilters }
+
+    /// A filter by id, Everything included.
+    public func filter(id: String) -> SavedFilter? { filters.first { $0.id == id } }
 
     /// The built-in layouts and nothing else, as before there is a folder.
     public static var builtIn: ConfigurationSnapshot {
@@ -106,8 +115,8 @@ public struct ConfigurationError: Error, Sendable, Hashable, CustomStringConvert
 
 /// The configuration folder: reads it, checks it, writes changes to it, and keeps its history.
 ///
-/// The folder holds `settings.json`, `shorthands.json` when any are set, one file per layout
-/// under `layouts/`, and a `README.md` that explains them. A file that does not validate is never applied: the last version that
+/// The folder holds `settings.json`, `shorthands.json` when any are set, `saved-filters.json`, one file per
+/// layout under `layouts/`, and a `README.md` that explains them. A file that does not validate is never applied: the last version that
 /// worked stays in use and the problem is reported with the file, where in it, and what is
 /// wrong. Every valid change is committed to the folder's git repository, whoever made it, by
 /// `ConfigurationHistory`. History never stops a save: when git fails, the change is made and
@@ -133,6 +142,7 @@ public final class ConfigurationStore {
 
     private var lastGoodSettings: ConfigurationSettings?
     private var lastGoodShorthands: ShorthandsFile?
+    private var lastGoodSavedFilters: SavedFilterFile?
     private var lastGoodLayouts: [String: PageLayout] = [:]
     private let builtIn = LayoutLibrary.builtIn()
 
@@ -144,6 +154,7 @@ public final class ConfigurationStore {
     public var exists: Bool { FileManager.default.fileExists(atPath: folder.path) }
     public var settingsURL: URL { folder.appending(path: ConfigurationSettings.fileName) }
     public var shorthandsURL: URL { folder.appending(path: ShorthandsFile.fileName) }
+    public var savedFiltersURL: URL { folder.appending(path: SavedFilterFile.fileName) }
     public var layoutsURL: URL { folder.appending(path: Self.layoutsFolderName, directoryHint: .isDirectory) }
     public func url(for file: String) -> URL { folder.appending(path: file) }
     public static func layoutFile(id: String) -> String { "\(layoutsFolderName)/\(id).json" }
@@ -170,6 +181,12 @@ public final class ConfigurationStore {
             }
             if !manager.fileExists(atPath: settingsURL.path) {
                 try ConfigurationSettings.defaults.encoded().write(to: settingsURL, options: .atomic)
+            }
+            // A new folder starts with the saved filters written out, so they can be seen and
+            // edited. A folder made before saved filters has no file, which means the same
+            // defaults, and gets one with the first change to them.
+            if isNew, !manager.fileExists(atPath: savedFiltersURL.path) {
+                try SavedFilterFile.defaults.encoded().write(to: savedFiltersURL, options: .atomic)
             }
         } catch {
             throw ConfigurationError("Could not create the configuration folder at \(folder.path): \(error.localizedDescription)")
@@ -224,6 +241,23 @@ public final class ConfigurationStore {
             lastGoodShorthands = nil
         }
 
+        // saved-filters.json. Missing means the defaults.
+        var savedFilters = SavedFilterFile.defaults
+        if let data = try? Data(contentsOf: savedFiltersURL) {
+            do throws(LayoutFileError) {
+                savedFilters = try SavedFilterFile.decode(data)
+                lastGoodSavedFilters = savedFilters
+            } catch {
+                if lastGoodSavedFilters == nil, let committed = committedContents(SavedFilterFile.fileName) {
+                    lastGoodSavedFilters = try? SavedFilterFile.decode(committed)
+                }
+                problems.append(ConfigurationProblem(error, file: SavedFilterFile.fileName, lastGoodInUse: lastGoodSavedFilters != nil))
+                savedFilters = lastGoodSavedFilters ?? .defaults
+            }
+        } else {
+            lastGoodSavedFilters = nil
+        }
+
         // layouts/*.json
         var fileLayouts: [String: PageLayout] = [:]
         let names = ((try? FileManager.default.contentsOfDirectory(atPath: layoutsURL.path)) ?? [])
@@ -273,7 +307,8 @@ public final class ConfigurationStore {
                 refusesFile: false))
         }
 
-        snapshot = ConfigurationSnapshot(settings: settings, layouts: entries, shorthands: shorthands, problems: problems)
+        snapshot = ConfigurationSnapshot(settings: settings, layouts: entries, shorthands: shorthands,
+                                         savedFilters: savedFilters.savedFilters, problems: problems)
 
         if let author, exists {
             let refused = Set(problems.filter(\.refusesFile).map(\.file))
@@ -562,7 +597,7 @@ public final class ConfigurationStore {
 
     /// Writes a file atomically: to a temporary file beside it, then renamed over it, so a
     /// reader never sees half a file.
-    private func write(_ data: Data, to file: String) throws(ConfigurationError) {
+    func write(_ data: Data, to file: String) throws(ConfigurationError) {
         let target = url(for: file)
         do {
             try FileManager.default.createDirectory(at: target.deletingLastPathComponent(), withIntermediateDirectories: true)

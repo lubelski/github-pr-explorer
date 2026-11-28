@@ -22,7 +22,7 @@ Real pull requests can be read (MAC-59), behind a setting that is off by default
 
 The owner's first run on real pull requests brought four changes to the main window (MAC-69). The sidebar button sits in the title bar just after the window buttons. A filter menu at the end of the views row narrows the list by status, repository, author, review state and drafts, as plain predicates until the filter language exists. Each list row has three lines, the title, the repository and number with the author, and the status's detail, beside a short colored badge for the state. The layout menu became a cog menu with Layout, Sync Now, Settings and Check for Updates.
 
-The list can be grouped (MAC-100). A group by button beside the filter button draws the list in sections by repository, author, status or review state, each headed by its name and count, so pull requests from several repositories can be read one repository at a time without filtering down to one. Grouping arranges the rows and keeps none out, so it is not a filter and has no syntax. The choice is remembered as window state, like the view.
+The list can be grouped (MAC-100). A group by button beside the filter button draws the list in sections by repository, author, status or review state, each headed by its name in bold and its count, so pull requests from several repositories can be read one repository at a time without filtering down to one. A section collapses and expands in place with the system's own disclosure control or a click on its header, and Option-click does every section. Grouping arranges the rows and keeps none out, so it is not a filter and has no syntax. The choice and which sections are collapsed are remembered as window state, like the view.
 
 ## What the research says
 

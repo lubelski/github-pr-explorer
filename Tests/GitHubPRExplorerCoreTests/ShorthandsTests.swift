@@ -222,7 +222,9 @@ import Testing
         // The search finds by the shorthand. The output keeps full names.
         result = run("pull-requests", "list", "--search", "Sam", "--source", "mock")
         #expect(!result.output.isEmpty)
-        #expect(result.output.split(separator: "\n").allSatisfy { $0.hasPrefix("acme/") })
+        // Sam's pull requests are in both placeholder organizations, acme and globex.
+        let fullNames = MockCast.allRepositories.map(\.fullName)
+        #expect(result.output.split(separator: "\n").allSatisfy { line in fullNames.contains { line.hasPrefix($0 + "#") } })
 
         #expect(run("shorthands", "remove", "person", "@sam-rivera").output == "Removed the shorthand Sam for sam-rivera.\n")
         #expect(run("shorthands", "remove", "person", "sam-rivera").exitCode == 1)

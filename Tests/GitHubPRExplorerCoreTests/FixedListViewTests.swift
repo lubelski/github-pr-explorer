@@ -16,7 +16,7 @@ import Testing
     }
 
     @Test func countsInTheMockWorld() {
-        #expect(listed(.needsMyReview).count == 48)
+        #expect(listed(.needsMyReview).count == 53)
         #expect(listed(.mine).count == 12)
         #expect(listed(.everythingOpen).count == 218)
     }

@@ -18,7 +18,7 @@ let blockedInAPIFilter = #"{"sets": [{"conditions": [{"field": "status", "values
         #expect(result.exitCode == 0, "\(result.errorOutput)")
         #expect(result.output == """
             everything\tfixed\t218\tEverything\tEvery open pull request.
-            needs-my-review\ttab\t48\tNeeds my review\tWaiting on me.
+            needs-my-review\ttab\t53\tNeeds my review\tWaiting on me.
             mine\ttab\t12\tMine\tBy me.
 
             """)

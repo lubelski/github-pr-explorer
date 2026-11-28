@@ -45,7 +45,7 @@ import Testing
                 == FixedListView.mine.pullRequests(in: all, viewer: viewer).map(\.id))
         #expect(SavedFilter.everything.evaluate(all, context: context).matches.map(\.id)
                 == FixedListView.everythingOpen.pullRequests(in: all, viewer: viewer).map(\.id))
-        #expect(SavedFilter.needsMyReview.evaluate(all, context: context).count == 48)
+        #expect(SavedFilter.needsMyReview.evaluate(all, context: context).count == 53)
         #expect(SavedFilter.mine.evaluate(all, context: context).count == 12)
         #expect(SavedFilter.everything.evaluate(all, context: context).count == 218)
         #expect(SavedFilterFile.defaults.savedFilters.map(\.id) == ["needs-my-review", "mine"])
@@ -81,8 +81,14 @@ import Testing
     @Test func namesIgnoreCaseAndOrganizationIsTheOwner() {
         #expect(kept(PullRequestFilter([condition(.repository, .is, "ACME/Api")])).count
                 == open.count { $0.repository == MockCast.api })
-        #expect(kept(PullRequestFilter([condition(.organization, .is, "acme")])).count == open.count)
-        #expect(kept(PullRequestFilter([condition(.organization, .isNot, "Acme")])).isEmpty)
+        // The mock world has two organizations, acme and globex (MAC-111).
+        let acme = open.count { $0.repository.owner == "acme" }
+        let globex = open.count { $0.repository.owner == "globex" }
+        #expect(acme > 0 && globex > 0 && acme + globex == open.count)
+        #expect(kept(PullRequestFilter([condition(.organization, .is, "acme")])).count == acme)
+        #expect(kept(PullRequestFilter([condition(.organization, .is, "ACME", "Globex")])).count == open.count)
+        #expect(kept(PullRequestFilter([condition(.organization, .isNot, "Acme")])).allSatisfy { $0.repository.owner == "globex" })
+        #expect(kept(PullRequestFilter([condition(.organization, .isNot, "Acme")])).count == globex)
         #expect(kept(PullRequestFilter([condition(.author, .is, "ADA-PARK")])).allSatisfy { $0.author.login == "ada-park" })
     }
 

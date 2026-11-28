@@ -24,6 +24,11 @@ enum Style {
     /// A block's card, the header and the list.
     static let surface = Color(nsColor: .textBackgroundColor)
     static let hairline = Color(nsColor: .separatorColor)
+    /// The faint vertical line a title row of the list's tree runs down past what it holds.
+    static let treeGuide = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? NSColor.white.withAlphaComponent(0.17) : NSColor.black.withAlphaComponent(0.13)
+    })
 
     static let added = Color(nsColor: NSColor(name: nil) { appearance in
         appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua

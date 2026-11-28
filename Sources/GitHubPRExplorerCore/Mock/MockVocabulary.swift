@@ -43,6 +43,7 @@ enum MockVocabulary {
         case MockCast.api: api
         case MockCast.web: web
         case MockCast.infra: infra
+        case MockCast.globexBilling: globexBilling
         default: docs
         }
     }
@@ -223,6 +224,33 @@ enum MockVocabulary {
         hasPreviews: false, hasCoverage: false,
         newFileStems: ["troubleshooting", "faq", "limits", "migration"],
         fileExtension: "md", firstNumber: 40, requiresResolvedThreads: false, requiresUpToDate: false
+    )
+
+    /// The second organization's billing service (MAC-111).
+    static let globexBilling = MockRepositoryProfile(
+        repository: MockCast.globexBilling,
+        areas: [
+            MockArea(name: "invoices", subjects: ["invoice totals", "the invoice renderer", "credit notes"],
+                     files: ["src/invoices/totals.go", "src/invoices/render.go", "src/invoices/totals_test.go"],
+                     directory: "src/invoices", labels: ["billing"],
+                     problems: ["Invoice totals are off by a cent on long invoices"]),
+            MockArea(name: "payments", subjects: ["the card charger", "the dunning schedule", "failed payment emails"],
+                     files: ["src/payments/charger.go", "src/payments/dunning.go", "src/payments/charger_test.go"],
+                     directory: "src/payments", labels: ["billing"],
+                     problems: ["Cards are charged twice after a timeout"]),
+            MockArea(name: "ledger", subjects: ["the ledger", "ledger exports"],
+                     files: ["src/ledger/entry.go", "src/ledger/export.go", "src/ledger/entry_test.go"],
+                     directory: "src/ledger", labels: ["billing"],
+                     problems: ["Ledger exports lose the currency"]),
+        ],
+        actions: ["Simplify", "Add tests for", "Speed up", "Fix rounding in"],
+        checks: [
+            MockCheckDefinition(name: "go-test", isRequired: true, seconds: 60...180, failures: ["TestChargeRetries timed out"]),
+            MockCheckDefinition(name: "golangci-lint", isRequired: true, seconds: 20...60, failures: ["errcheck in src/payments/charger.go"]),
+        ],
+        hasPreviews: false, hasCoverage: false,
+        newFileStems: ["currency", "budget"],
+        fileExtension: "go", firstNumber: 200, requiresResolvedThreads: false, requiresUpToDate: false
     )
 
     // MARK: Words for bodies, comments and commits

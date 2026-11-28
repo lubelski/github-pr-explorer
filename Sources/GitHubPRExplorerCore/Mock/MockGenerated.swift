@@ -60,8 +60,16 @@ enum MockGenerated {
         }
 
         for scenario in openScenarios { drafts.append(ordinary(scenario)) }
+        let openEnd = drafts.count
         for _ in 0..<mergedTarget { drafts.append(ordinary(.merged)) }
         for _ in 0..<closedTarget { drafts.append(ordinary(.closed)) }
+
+        // The second organization's pull requests take the place of the last ordinary open
+        // ones, so the world keeps 218 open and every other pull request stays as it was.
+        let second = secondOrganization(now: now)
+        let replaced = min(second.count { $0.scenario.isOpen }, max(0, openEnd - everyScenario.count * repositories.count))
+        drafts.removeSubrange((openEnd - replaced)..<openEnd)
+        drafts += second
 
         return assignNumbers(drafts, reserved: reserved)
     }
@@ -285,6 +293,26 @@ enum MockGenerated {
         return specs
     }
 
+    /// A few pull requests in a second organization, `globex`, so the list can be grouped by
+    /// organization. Its `docs` repository shares a short name with acme's.
+    private static func secondOrganization(now: Date) -> [MockPullRequestSpec] {
+        let billing = MockCast.globexBilling, docs = MockCast.globexDocs
+        func daysAgo(_ days: Double) -> Date { now.addingTimeInterval(-days * 86_400) }
+        let areas = MockVocabulary.globexBilling.areas
+        return [
+            MockPullRequestSpec(repository: billing, number: 0, title: "Round invoice totals per line", author: MockCast.samRivera,
+                                scenario: .readyToMerge, createdAt: daysAgo(1.6), area: areas[0]),
+            MockPullRequestSpec(repository: billing, number: 0, title: "Add a retry budget to the card charger",
+                                author: MockCast.robinQuill, scenario: .requiredCheckFailed, createdAt: daysAgo(0.9), area: areas[1]),
+            MockPullRequestSpec(repository: billing, number: 0, title: "Store the currency with every ledger entry",
+                                author: MockCast.adaPark, scenario: .waitingOnReviewers, createdAt: daysAgo(2.7), area: areas[2]),
+            MockPullRequestSpec(repository: billing, number: 0, title: "Show the dunning schedule on the account page",
+                                author: MockCast.kaiDuarte, scenario: .changesRequested, createdAt: daysAgo(5.2), area: areas[1]),
+            MockPullRequestSpec(repository: docs, number: 0, title: "Document the ledger export format", author: MockCast.miraHolm,
+                                scenario: .needsReview, createdAt: daysAgo(3.3), area: MockVocabulary.docs.areas[0]),
+        ]
+    }
+
     static let richBody = """
         ## What changed
 
@@ -359,7 +387,7 @@ enum MockGenerated {
     private static func assignNumbers(_ specs: [MockPullRequestSpec], reserved: Set<PullRequestReference>) -> [MockPullRequestSpec] {
         var rng = SeededGenerator(seed: "mock world numbers")
         var result = specs
-        for repository in MockCast.repositories {
+        for repository in MockCast.allRepositories {
             let indices = result.indices
                 .filter { result[$0].repository == repository }
                 .sorted { (result[$0].createdAt ?? .distantPast, $0) < (result[$1].createdAt ?? .distantPast, $1) }

@@ -266,19 +266,24 @@ enum SettingsPreviews {
             State(name: "shorthands-search", size: CGSize(width: 1560, height: 940)) {
                 shorthandWindow(shorthandStore()) { $0.searchText = "Web Ada" }
             },
-            // The grouped list: a repository's shorthand names its section, and a person's
-            // shorthand names their author section.
+            // The grouped list: a repository's shorthand names its title row, and a person's
+            // shorthand names their author title row.
             State(name: "shorthands-group-repository", size: CGSize(width: 1560, height: 940)) {
-                shorthandWindow(shorthandStore()) { $0.listGrouping = .repository }
+                shorthandWindow(shorthandStore()) { $0.listGrouping = ListGrouping(.repository) }
             },
-            // Every author section collapsed but the one holding the selection, so their
-            // headers show, among them Ada's under her shorthand.
+            // Every author title row closed but the one holding the selection, so their names
+            // show, among them Ada's under her shorthand.
             State(name: "shorthands-group-author", size: CGSize(width: 1560, height: 940)) {
                 shorthandWindow(shorthandStore()) { app in
-                    app.listGrouping = .author
-                    app.setAllSections(collapsed: true)
+                    app.listGrouping = ListGrouping(.author)
+                    app.setAllGroups(closed: true)
                     app.selection = app.listedPullRequests.first { $0.author.login == MockCast.adaPark.login }?.id
                 }
+            },
+            // The tree, by organization then repository: an organization keeps its name, and a
+            // repository with a shorthand is named by it alone. globex's have none.
+            State(name: "shorthands-group-organization-repository", size: CGSize(width: 1560, height: 940)) {
+                shorthandWindow(shorthandStore()) { $0.listGrouping = ListGrouping(.organization, then: .repository) }
             },
             // The page's other tabs, where threads, owners and metadata draw names.
             State(name: "shorthands-page-tabbed-threads", size: CGSize(width: 1560, height: 940)) {

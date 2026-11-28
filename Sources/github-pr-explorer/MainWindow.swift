@@ -56,6 +56,9 @@ struct MainWindowView: View {
                 if let pr = model.selectedPullRequest {
                     PullRequestPage(model: model, pullRequest: pr)
                         .id(pr.id)
+                } else if let group = model.selectedGroup {
+                    ListGroupOverview(model: model, group: group)
+                        .id(group.id)
                 } else {
                     ContentUnavailableView("No Pull Request Selected", systemImage: "arrow.triangle.pull",
                                            description: Text("Choose one from the list."))
@@ -180,23 +183,36 @@ struct PullRequestList: View {
                 }
             } else {
                 ScrollViewReader { proxy in
-                List(selection: rendering ? .constant(nil) : $model.selection) {
-                    if model.listGrouping == .none {
-                        rows(listed)
-                    } else {
-                        ForEach(model.listSections) { section in
-                            Section(isExpanded: expanded(section.id)) {
-                                rows(section.pullRequests)
-                            } header: {
-                                ListSectionHeader(model: model, section: section)
-                            }
-                        }
+                List(selection: rendering ? .constant(nil) : $model.listSelection) {
+                    ForEach(model.listTree.rows(closed: model.closedGroups)) { row in
+                        rowView(row)
+                            .tag(row.id)
+                            .id(row.id)
+                            .listRowBackground(rendering && model.listSelection == row.id
+                                ? RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)).padding(.horizontal, 8)
+                                : nil)
                     }
                 }
                 .listStyle(.sidebar)
                 .scrollContentBackground(.hidden)
-                // Bring the selected pull request into view when the window opens.
-                .onAppear { if let selection = model.selection { proxy.scrollTo(selection, anchor: .center) } }
+                // A double-click or Return on a title row opens or closes it. A click selects.
+                .contextMenu(forSelectionType: ListSelection.self, menu: { _ in }) { rows in
+                    guard rows.count == 1, let id = rows.first?.groupID else { return }
+                    withAnimation(.snappy(duration: 0.2)) { model.toggleGroup(id) }
+                }
+                // Left and right close and open title rows, and move out and in, as in Finder.
+                .onKeyPress(.leftArrow) {
+                    guard !model.listGrouping.isNone else { return .ignored }
+                    withAnimation(.snappy(duration: 0.2)) { model.moveSelectionOut() }
+                    return .handled
+                }
+                .onKeyPress(.rightArrow) {
+                    guard !model.listGrouping.isNone else { return .ignored }
+                    withAnimation(.snappy(duration: 0.2)) { model.moveSelectionIn() }
+                    return .handled
+                }
+                // Bring the selection into view when the window opens.
+                .onAppear { if let selection = model.listSelection { proxy.scrollTo(selection, anchor: .center) } }
                 }
             }
         }
@@ -204,25 +220,18 @@ struct PullRequestList: View {
         .background(Style.surface)
     }
 
-    /// Whether a section is expanded, for the system's own disclosure control.
-    private func expanded(_ id: String) -> Binding<Bool> {
-        Binding {
-            !model.collapsedSections.contains(id)
-        } set: { isExpanded in
-            if isExpanded { model.collapsedSections.remove(id) } else { model.collapsedSections.insert(id) }
-        }
-    }
-
-    private func rows(_ pullRequests: [PullRequest]) -> some View {
-        ForEach(pullRequests) { pr in
+    @ViewBuilder
+    private func rowView(_ row: ListRow) -> some View {
+        switch row.content {
+        case .group(let group, let isOpen):
+            ListGroupRow(model: model, group: group, isOpen: isOpen)
+        case .pullRequest(let pr):
             PullRequestRow(pullRequest: pr, status: model.status(for: pr),
                            isViewer: model.index.viewer.isViewer(pr.author),
+                           namedByAncestors: row.namedByAncestors,
                            shorthands: model.shorthands)
-                .tag(pr.id)
-                .id(pr.id)
-                .listRowBackground(rendering && model.selection == pr.id
-                    ? RoundedRectangle(cornerRadius: 6).fill(Color.accentColor.opacity(0.18)).padding(.horizontal, 8)
-                    : nil)
+                .padding(.leading, CGFloat(row.depth) * ListTreeMetrics.indentStep)
+                .background(alignment: .leading) { ListTreeGuides(depth: row.depth) }
         }
     }
 
@@ -327,6 +336,9 @@ struct PullRequestRow: View {
     let status: StatusSentence
     /// The viewer wrote it, so the author shows as "you".
     var isViewer = false
+    /// What the title rows above it already say. Inside a repository the row does not repeat
+    /// the repository's name, and inside an organization it names the repository without it.
+    var namedByAncestors: Set<ListGrouping.Property> = []
     /// Short names for the repository and the author. The hover keeps the full names.
     var shorthands: Shorthands = .none
 
@@ -357,20 +369,37 @@ struct PullRequestRow: View {
 
     /// "acme/api #4826 · Ada Park", or without the author when that does not fit. A shorthand
     /// takes the place of the repository's or the author's name, as in "API #4826 · Ada".
+    /// Inside a repository it is "#4826 · Ada Park", inside an organization "api #4826 · Ada
+    /// Park" (or the repository's shorthand, which stands alone), and inside an author
+    /// "acme/api #4826".
     private var repositoryLine: some View {
-        let repository = shorthands.name(for: pullRequest.repository).text
+        let repository: String? = if namedByAncestors.contains(.repository) {
+            nil
+        } else if let short = shorthands.shorthand(.repository, for: pullRequest.repository.fullName) {
+            short
+        } else if namedByAncestors.contains(.organization) {
+            pullRequest.repository.name
+        } else {
+            pullRequest.repository.fullName
+        }
+        let number = repository == nil ? "#\(pullRequest.number)" : " #\(pullRequest.number)"
         return ViewThatFits(in: .horizontal) {
             HStack(spacing: 0) {
-                Text(verbatim: repository)
-                Text(verbatim: " #\(pullRequest.number)")
-                Text(verbatim: " · ").foregroundStyle(.tertiary)
-                Text(isViewer ? "you" : shorthands.name(for: pullRequest.author).text)
+                if let repository { Text(verbatim: repository) }
+                Text(verbatim: number)
+                // Inside an author's row the author goes without saying.
+                if !namedByAncestors.contains(.author) {
+                    Text(verbatim: " · ").foregroundStyle(.tertiary)
+                    Text(isViewer ? "you" : shorthands.name(for: pullRequest.author).text)
+                }
             }
             .fixedSize()
             HStack(spacing: 0) {
-                Text(verbatim: repository)
-                    .truncationMode(.middle)
-                Text(verbatim: " #\(pullRequest.number)")
+                if let repository {
+                    Text(verbatim: repository)
+                        .truncationMode(.middle)
+                }
+                Text(verbatim: number)
                     .fixedSize()
                     .layoutPriority(1)
             }

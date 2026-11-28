@@ -233,28 +233,77 @@ enum PreviewRenderer {
             State(name: "list-group-repository") {
                 let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
                 model.listView = .mine
-                model.listGrouping = .repository
+                model.listGrouping = ListGrouping(.repository)
                 return model
             },
             // Two sections collapsed, one of them not the first.
             State(name: "list-group-repository-collapsed") {
                 let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) })
                 model.listView = .mine
-                model.listGrouping = .repository
-                model.collapsedSections = ["repository:acme/docs", "repository:acme/infra"]
+                model.listGrouping = ListGrouping(.repository)
+                model.closedGroups = ["repository:acme/docs", "repository:acme/infra"]
                 return model
             },
             State(name: "list-group-repository-everything-open") {
                 let model = model(example)
                 model.listView = .everythingOpen
-                model.listGrouping = .repository
+                model.listGrouping = ListGrouping(.repository)
                 return model
             },
             State(name: "list-group-status-filtered") {
                 let model = model(example)
                 model.listView = .everythingOpen
                 model.listFilter = ListFilter(repositories: [MockCast.api])
-                model.listGrouping = .status
+                model.listGrouping = ListGrouping(.status)
+                return model
+            },
+            // The list as a tree (MAC-111): by organization, then repository, in "Mine", all
+            // open, with a pull request selected. Rows inside a repository read "#4715 · you".
+            State(name: "list-tree-open") {
+                let model = model(first { $0.title == "Add audit events for session revocation" })
+                model.listView = .mine
+                model.listGrouping = ListGrouping(.organization, then: .repository)
+                return model
+            },
+            // Some rows closed: two of acme's repositories and the whole of globex. A closed
+            // row keeps its count.
+            State(name: "list-tree-partly-closed") {
+                let model = model(first { $0.state == .open && world.viewer.isViewer($0.author) && $0.repository == MockCast.web })
+                model.listView = .mine
+                model.listGrouping = ListGrouping(.organization, then: .repository)
+                model.closedGroups = ["organization:acme|repository:acme/api", "organization:acme|repository:acme/infra",
+                                      "organization:globex"]
+                return model
+            },
+            // A title row selected: the right side shows its placeholder.
+            State(name: "list-tree-title-row-selected") {
+                let model = model(example)
+                model.listView = .mine
+                model.listGrouping = ListGrouping(.organization, then: .repository)
+                model.closedGroups = ["organization:acme|repository:acme/api", "organization:acme|repository:acme/docs"]
+                model.listSelection = .group("organization:acme|repository:acme/web")
+                return model
+            },
+            // An organization selected, everything open, with every row closed by Collapse All.
+            State(name: "list-tree-all-closed") {
+                let model = model(example)
+                model.listView = .everythingOpen
+                model.listGrouping = ListGrouping(.organization, then: .repository)
+                model.setAllGroups(closed: true)
+                return model
+            },
+            // One level: by organization only. Rows name the repository without its organization.
+            State(name: "list-tree-one-level") {
+                let model = model(first { $0.title == "Add audit events for session revocation" })
+                model.listView = .mine
+                model.listGrouping = ListGrouping(.organization)
+                return model
+            },
+            // Two levels that are not organization and repository: by author, then status.
+            State(name: "list-tree-author-then-status") {
+                let model = model(example)
+                model.listView = .needsMyReview
+                model.listGrouping = ListGrouping(.author, then: .status)
                 return model
             },
             // A repository name far longer than the mock world's, made up here and marked as

@@ -51,8 +51,8 @@ public struct MockWorld: Codable, Sendable {
             viewer: viewer,
             people: MockCast.everyone,
             teams: MockCast.teams,
-            repositories: MockCast.repositories,
-            codeOwners: MockCast.repositories.map { RepositoryCodeOwners(repository: $0, rules: MockCast.codeOwnerRules(for: $0)) },
+            repositories: MockCast.allRepositories,
+            codeOwners: MockCast.allRepositories.map { RepositoryCodeOwners(repository: $0, rules: MockCast.codeOwnerRules(for: $0)) },
             pullRequests: index.allPullRequests
         )
     }
